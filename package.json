@@ -1,0 +1,17 @@
+{
+	"name": "aurora",
+	"license": "GPLv3",
+	"description": "A 3D Graphics Engine.",
+	"copyright": "Copyright © 2014, Felix 'Zoadian' Hufnagel",
+	"authors": ["Felix 'Zoadian' Hufnagel"],
+	
+	"targetPath": "bin",
+    "targetType": "library",
+	
+	"dependencies": {
+		"derelict-util" : "~master",
+		"derelict-gl3" : "~master",
+		"derelict-glfw3" : "~master",
+		"derelict-ft" : "~master"
+	}
+}
