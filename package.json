@@ -1,6 +1,6 @@
 {
 	"name": "aurora",
-	"license": "GPLv3",
+	"license": "LGPLv3",
 	"description": "A 3D Graphics Engine.",
 	"copyright": "Copyright © 2014, Felix 'Zoadian' Hufnagel",
 	"authors": ["Felix 'Zoadian' Hufnagel"],
