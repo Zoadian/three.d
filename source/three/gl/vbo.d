@@ -6,10 +6,10 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module aurora.gl.vbo;
+module three.gl.vbo;
 
 import derelict.opengl3.gl3;
-import aurora.gl.util;
+import three.gl.util;
 
 
 //==============================================================================
@@ -28,6 +28,21 @@ enum VertexBufferObjectTarget {
 	Texture = GL_TEXTURE_BUFFER, 
 	TransformFeedback = GL_TRANSFORM_FEEDBACK_BUFFER,
 	Uniform = GL_UNIFORM_BUFFER
+}
+
+
+//==============================================================================
+///
+enum BufferUsageHint {
+	StreamDraw = GL_STREAM_DRAW, 
+	StreamRead = GL_STREAM_READ, 
+	StreamCopy = GL_STREAM_COPY, 
+	StaticDraw = GL_STATIC_DRAW, 
+	StaticRead = GL_STATIC_READ, 
+	StaticCopy = GL_STATIC_COPY, 
+	DynamicDraw = GL_DYNAMIC_DRAW, 
+	DynamicRead = GL_DYNAMIC_READ, 
+	DynamicCopy = GL_DYNAMIC_COPY
 }
 
 

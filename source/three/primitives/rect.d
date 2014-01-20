@@ -6,9 +6,9 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module aurora.primitives.rect;
+module three.primitives.rect;
 
-import aurora.primitives.point;
+import three.primitives.point;
 
 import std.traits;
 

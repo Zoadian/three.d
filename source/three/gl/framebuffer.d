@@ -6,10 +6,10 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module aurora.gl.framebuffer;
+module three.gl.framebuffer;
 
 import derelict.opengl3.gl3;
-import aurora.gl.util;
+import three.gl.util;
 
 
 //==============================================================================

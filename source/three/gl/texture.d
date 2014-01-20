@@ -6,41 +6,46 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module aurora.gl.vao;
+module three.gl.texture;
 
 import derelict.opengl3.gl3;
-import aurora.gl.util;
+import three.gl.util;
 
 
 //==============================================================================
 ///
-final class VertexArrayObject {
+final class Texture {
 private:
 	uint _id;
 
-public:	   
+public:		 
 	///
 	this() {
-		check!glGenVertexArrays(1, &this._id);
+		check!glGenTextures(1, &this._id);
 	}
 
 	///
 	~this() {
-		check!glDeleteVertexArrays(1, &this._id);
+		check!glDeleteTextures(1, &this._id);
 	}
 	
-public:		   
+public:		  
 	///
-	void bind() { 
-		check!glBindVertexArray(this._id);
+	void activate(uint location) {
+		check!glActiveTexture(GL_TEXTURE0 + location);
+	}
+
+	///
+	void bind() {
+		check!glBindTexture(GL_TEXTURE_2D, this._id);
 	}
 
 	///
 	static void unbind() { 
-		check!glBindVertexArray(0);
-	}  
+		check!glBindTexture(GL_TEXTURE_2D, 0); 
+	}
 	
-public:	  
+public:				
 	///
 	@property bool isValid() const @safe nothrow {
 		return (this._id > 0);

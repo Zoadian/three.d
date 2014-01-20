@@ -6,38 +6,38 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module aurora.gl.renderbuffer;
+module three.gl.vao;
 
 import derelict.opengl3.gl3;
-import aurora.gl.util;
+import three.gl.util;
 
 
 //==============================================================================
 ///
-final class Renderbuffer {
+final class VertexArrayObject {
 private:
-	GLuint _id;
+	uint _id;
 
 public:	   
 	///
 	this() {
-		check!glGenRenderbuffers(1, &this._id);
+		check!glGenVertexArrays(1, &this._id);
 	}
 
 	///
 	~this() {
-		check!glDeleteRenderbuffers(1, &this._id); 
+		check!glDeleteVertexArrays(1, &this._id);
 	}
 	
-public:	  
+public:		   
 	///
 	void bind() { 
-		check!glBindRenderbuffer(GL_RENDERBUFFER, this._id);
+		check!glBindVertexArray(this._id);
 	}
 
 	///
-	static void unbind(){ 
-		check!glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	static void unbind() { 
+		check!glBindVertexArray(0);
 	}  
 	
 public:	  

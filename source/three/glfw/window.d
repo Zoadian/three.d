@@ -6,7 +6,7 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module aurora.glfw.window;
+module three.glfw.window;
 
 import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
