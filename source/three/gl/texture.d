@@ -204,6 +204,9 @@ public:
 
 
 
+private void _isTextureUnit(T...)(TextureUnit!(T) t) {}
+enum isTextureUnit(T) = is(typeof(_isTextureUnit(T.init)));
+
 
 
 
@@ -333,3 +336,7 @@ public:
 		return (this._id > 0);
 	}
 }
+
+
+private void _isTexture(T...)(Texture!(T) t) {}
+enum isTexture(T) = is(typeof(_isTexture(T.init)));

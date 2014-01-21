@@ -48,7 +48,7 @@ enum BufferUsageHint {
 
 //==============================================================================
 ///
-final class VertexBufferObject {
+final class VertexBufferObject(VertexBufferObjectTarget target) {
 private:
 	uint _id;
 
@@ -65,12 +65,12 @@ public:
 	
 public:		 
 	///
-	void bind(VertexBufferObjectTarget target) { 
+	void bind() { 
 		check!glBindBuffer(target, this._id);
 	}
 
 	///
-	static unbind(VertexBufferObjectTarget target = VertexBufferObjectTarget.Array) { 
+	static unbind() { 
 		check!glBindBuffer(target, 0);
 	}  
 	
@@ -80,3 +80,7 @@ public:
 		return (this._id > 0);
 	}
 }
+
+
+private void _isVertexBufferObject(T...)(VertexBufferObject!(T) t) {}
+enum isVertexBufferObject(T) = is(typeof(_isVertexBufferObject(T.init)));
