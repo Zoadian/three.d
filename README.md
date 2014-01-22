@@ -1,7 +1,8 @@
-aurora
+Three.d
 ======
 
-Aurora is a 3D Graphic Engine written in the D Programming Language.
+Three.d is a 3D Graphic Engine written in the D Programming Language.
+
 
 License: 
 --------
