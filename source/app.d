@@ -4,7 +4,7 @@ import three;
 import std.typecons;
 
 class Tester {
-	Window _window;
+	Unique!(Window) _window;
 	bool _keepRunning = true;
 	
 	this() {
@@ -14,7 +14,7 @@ class Tester {
 	}
 	
 	~this() {
-		_window.destroy();
+		//_window.destroy();
 		deinitThree();
 	}
 	
@@ -29,7 +29,7 @@ class Tester {
 	}
 	
 	void _onKey(Window window, Key key, ScanCode scanCode, KeyAction action, KeyMod keyMod) {
-		if(window is _window && action == KeyAction.Pressed) {
+		if(window is this._window.opDot() && action == KeyAction.Pressed) {
 			if(key == Key.Escape) {
 				this.stop();
 			}

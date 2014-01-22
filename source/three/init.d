@@ -8,8 +8,9 @@ import three.glfw.window;
 
 import std.stdio;
 import std.conv;
+import std.typecons;
 
-Window initThree() {
+Unique!(Window) initThree() {
 	DerelictGL3.load();
 	DerelictGLFW3.load();
 	//DerelictFT.load();
@@ -17,7 +18,7 @@ Window initThree() {
 	//~ if(!freeTypeInit()) throw new Exception("FreeType init failed");
 	if(!glfwInit()) throw new Exception("GLFW init failed");
 	
-	auto window = new Window("Fray", 1024, 768);
+	Unique!(Window) window = new Window("Fray", 1024, 768);
 	
 	try {
 		GLVersion glVersion = DerelictGL3.reload();
@@ -26,7 +27,7 @@ Window initThree() {
 		writeln("exception: "~ e.msg);
 	}
 
-	return window;
+	return window.release();
 }
 
 void deinitThree() {
