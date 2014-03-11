@@ -11,6 +11,7 @@ module three.gl.shader;
 import derelict.opengl3.gl3;
 import three.gl.util;
 
+import std.string;
 
 //==============================================================================
 ///
@@ -22,13 +23,22 @@ enum ShaderType {
 	TesselationEvaluation 	= GL_TESS_EVALUATION_SHADER
 }
 
+private template shaderTypeBitIdentifier(ShaderType TYPE)
+{
+	static if(TYPE == ShaderType.Vertex) enum shaderTypeBitIdentifier = GL_VERTEX_SHADER_BIT;
+	else static if(TYPE == ShaderType.Fragment) enum shaderTypeBitIdentifier = GL_FRAGMENT_SHADER_BIT;
+	else static if(TYPE == ShaderType.Geometry) enum shaderTypeBitIdentifier = GL_GEOMETRY_SHADER_BIT;
+	else static if(TYPE == ShaderType.TesselationControl) enum shaderTypeBitIdentifier = GL_TESS_CONTROL_SHADER_BIT;
+	else static if(TYPE == ShaderType.TesselationEvaluation) enum shaderTypeBitIdentifier = GL_TESS_EVALUATION_SHADER_BIT;
+}
 
 //==============================================================================
 ///
 final class Shader(ShaderType TYPE) {		
 private:
 	uint _id;
-
+	int[string] _uniformLocationCache;
+	alias type = TYPE;
 public:	   
 	///
 	this(string source) {
@@ -62,8 +72,8 @@ public:
 		auto szName = name.toStringz();
 		assert(this._id > 0);
 		int x = check!glGetUniformLocation(this._id, &szName[0]);
-		//assert(x != -1, "wrong uniform location : " ~ name);
-		try{if(x == -1) "wrong uniform location : ".writeln(name);}catch(Exception e){}
+		assert(x != -1, "wrong uniform location : " ~ name);
+		//try{if(x == -1) "wrong uniform location : ".writeln(name);}catch(Exception e){}
 		
 		this._uniformLocationCache[name] = x;
 		//if(x == -1) throw new Exception("uniform location "~name~" not found");
@@ -119,6 +129,7 @@ public:
 public:    
 	/// 
 	void bind()  { 
+		assert(this.isValid);
 		glBindProgramPipeline(this._id); 
 	}
 

@@ -66,6 +66,7 @@ public:
 public:	   
 	///
 	void bind(FramebufferTarget target) { 
+		assert(this.isValid);
 		check!glBindFramebuffer(target, this._id);
 	}    
 

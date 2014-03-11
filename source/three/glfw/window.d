@@ -14,6 +14,7 @@ import derelict.glfw3.glfw3;
 import std.string;
 import stdx.signals;
 
+import three.gfx.color;
 
 //==============================================================================
 ///
@@ -101,7 +102,7 @@ public:
 		return _buttonStates.get(button, ButtonAction.Released);
 	}
 
-public:			
+public:		
 	///
 	void clear(float r, float g, float b, float a, float depth = 1.0f, GLenum bits = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) {
 		glClearColor(r, g, b, a);

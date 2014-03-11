@@ -15,6 +15,10 @@ public:
 	T[D] data;
 	
 	alias data this;
+
+	this(T[] data...) {
+		this.data = data;
+	}
 	
 	static if(D >= 1) {
 		T x() @safe @property const {

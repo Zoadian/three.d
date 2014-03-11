@@ -32,6 +32,7 @@ public:
 public:		   
 	///
 	void bind() { 
+		assert(this.isValid);
 		check!glBindVertexArray(this._id);
 	}
 

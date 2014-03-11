@@ -66,6 +66,7 @@ public:
 public:		 
 	///
 	void bind() { 
+		assert(this.isValid);
 		check!glBindBuffer(target, this._id);
 	}
 
