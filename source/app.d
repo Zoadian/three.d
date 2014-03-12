@@ -6,6 +6,9 @@ import std.typecons;
 import derelict.opengl3.gl3;
 import three.gl.util;
 
+import derelict.anttweakbar.anttweakbar;
+import derelict.glfw3.glfw3;
+
 class Tester {
 	Unique!(Window) _window;
 	bool _keepRunning = true;
@@ -23,6 +26,43 @@ class Tester {
 	}
 	
 	void run() {
+		double time        = 0, dt;              // Current time and enlapsed time
+		double turn        = 0;                  // Model turn counter
+		double speed       = 0.3;                // Model rotation speed
+		int wire           = 0;                  // Draw model in wireframe?
+		uint frameCount    = 0;
+		double fps    = 0;
+		float bgColor[3]   = [0.1f, 0.2f, 0.4f]; // Background color
+		ubyte cubeColor[4] = [255, 0, 0, 128];   // Model color (32bits RGBA)
+
+		TwWindowSize(640, 480);
+
+		// Create a tweak bar
+		auto bar = TwNewBar("TweakBar");
+		TwDefine(" GLOBAL help='This example shows how to integrate AntTweakBar with GLFW and OpenGL.' "); // Message added to the help bar.
+		
+		// Add 'speed' to 'bar': it is a modifable (RW) variable of type TW_TYPE_DOUBLE. Its key shortcuts are [s] and [S].
+		TwAddVarRW(bar, "speed", TW_TYPE_DOUBLE, &speed,
+		           " label='Rot speed' min=0 max=2 step=0.01 keyIncr=s keyDecr=S help='Rotation speed (turns/second)' ");
+		
+		// Add 'wire' to 'bar': it is a modifable variable of type TW_TYPE_BOOL32 (32 bits boolean). Its key shortcut is [w].
+		TwAddVarRW(bar, "wire", TW_TYPE_BOOL32, &wire,
+		           " label='Wireframe mode' key=CTRL+w help='Toggle wireframe display mode.' ");
+		
+		// Add 'time' to 'bar': it is a read-only (RO) variable of type TW_TYPE_DOUBLE, with 1 precision digit
+		TwAddVarRO(bar, "time", TW_TYPE_DOUBLE, &time, " label='Time' precision=1 help='Time (in seconds).' ");
+
+		TwAddVarRO(bar, "frameCount", TW_TYPE_UINT32, &frameCount, " label='FrameCount' precision=1 help='FrameCount (in counts).' ");
+		TwAddVarRO(bar, "fps", TW_TYPE_DOUBLE, &fps, " label='fps' precision=1 help='fps (in fps).' ");
+		
+		// Add 'bgColor' to 'bar': it is a modifable variable of type TW_TYPE_COLOR3F (3 floats color)
+		TwAddVarRW(bar, "bgColor", TW_TYPE_COLOR3F, &bgColor, " label='Background color' ");
+		
+		// Add 'cubeColor' to 'bar': it is a modifable variable of type TW_TYPE_COLOR32 (32 bits color) with alpha
+		TwAddVarRW(bar, "cubeColor", TW_TYPE_COLOR32, &cubeColor,
+		           " label='Cube color' alpha help='Color and transparency of the cube.' ");
+
+
 		//-----------------
 		// Create Mesh
 		Vector3f vertices[3] = [
@@ -90,8 +130,8 @@ class Tester {
 
 		//-----------------
 		// Render Loop
+		glfwSetTime(0);
 		while(this._keepRunning) {
-			updateWindows();
 					
 			this._window.clear(0, 0, 0.5, 1);
 
@@ -103,7 +143,16 @@ class Tester {
 			vao.unbind();
 			shaderPipeline.unbind();
 
-			this._window.swapBuffers();			
+			TwDraw();
+
+			this._window.swapBuffers();
+
+			++frameCount;
+			if(frameCount % 100 == 0) {
+				updateWindows();
+				time = glfwGetTime();
+				fps = cast(double)frameCount / time;
+			}
 		}
 	}
 	
@@ -126,6 +175,7 @@ class Tester {
 
 
 void main() {
+
 	Unique!(Tester) tester = new Tester();	
 	tester.run();
 }

@@ -3,6 +3,7 @@ module three.init;
 import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
 //import derelict.freetype.ft;
+import derelict.anttweakbar.anttweakbar;
 
 import three.glfw.window;
 
@@ -27,10 +28,16 @@ Unique!(Window) initThree() {
 		writeln("exception: "~ e.msg);
 	}
 
+	DerelictAntTweakBar.load();
+	TwInit(TW_OPENGL_CORE, null);
+
 	return window.release();
+
+
 }
 
 void deinitThree() {
 	glfwTerminate();	 
+	TwTerminate();
 	//freeTypeDeinit();
 }

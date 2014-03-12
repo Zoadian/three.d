@@ -11,6 +11,7 @@
 		"derelict-gl3" : "~master",
 		"derelict-glfw3" : "~master",
 		"derelict-ft" : "~master",
+		"derelict_extras-anttweakbar" : "~master",
 		"stdx" : "~master",
 		"nitro" : "~master"
 	}
