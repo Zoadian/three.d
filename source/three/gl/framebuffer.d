@@ -11,6 +11,8 @@ module three.gl.framebuffer;
 import derelict.opengl3.gl3;
 import three.gl.util;
 
+import std.stdio;
+
 
 //==============================================================================
 ///
@@ -56,11 +58,13 @@ public:
 	///
 	this() {
 		check!glGenFramebuffers(1, &this._id); 
+		writeln("Framebuffer created: ", this._id);
 	}
 
 	///
 	~this() {
 		check!glDeleteFramebuffers(1, &this._id);
+		writeln("Framebuffer destroyed: ", this._id);
 	}
 	
 public:	   

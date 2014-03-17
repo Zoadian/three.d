@@ -11,6 +11,8 @@ module three.gl.texture;
 import derelict.opengl3.gl3;
 import three.gl.util;
 
+import std.stdio;
+
 //==============================================================================
 enum TextureTarget : GLenum {		
 	Texture1D = GL_TEXTURE_1D, 
@@ -323,11 +325,13 @@ public:
 	///
 	this() {
 		check!glGenTextures(1, &this._id);
+		writeln("Texture created: ", this._id);
 	}
 
 	///
 	~this() {
 		check!glDeleteTextures(1, &this._id);
+		writeln("Texture destroyed: ", this._id);
 	}
 	
 public:				

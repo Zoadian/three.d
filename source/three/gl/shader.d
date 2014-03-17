@@ -12,6 +12,7 @@ import derelict.opengl3.gl3;
 import three.gl.util;
 
 import std.string;
+import std.stdio;
 
 //==============================================================================
 ///
@@ -44,11 +45,13 @@ public:
 	this(string source) {
 		auto szSource = [source.toStringz()];
 		this._id = check!glCreateShaderProgramv(TYPE, 1, szSource.ptr);
+		writeln("Shader created: ", this._id);
 	}
 
 	///
 	~this() {
 		check!glDeleteProgram(this._id);
+		writeln("Shader deleted: ", this._id);
 	}
 
 public:	  
@@ -81,7 +84,7 @@ public:
 	}	
 
 	///
-	string infoLog() {
+	string infoLog() const {
 		int len;
 		check!glGetProgramiv(this._id, GL_INFO_LOG_LENGTH , &len);
 		if (len > 1) {
@@ -105,11 +108,13 @@ public:
 	///
 	this() { 
 		glGenProgramPipelines(1, &this._id); 
+		writeln("ShaderPipeline created: ", this._id);
 	}
 
 	///
 	~this() { 
 		glDeleteProgramPipelines(1, &this._id);
+		writeln("ShaderPipeline deleted: ", this._id);
 	}
 	
 public:			
@@ -151,7 +156,7 @@ public:
 	}
 
 	///
-	string infoLog() {
+	string infoLog() const {
 		int len;
 		glGetProgramiv(this._id, GL_INFO_LOG_LENGTH , &len);
 		if (len > 1) {

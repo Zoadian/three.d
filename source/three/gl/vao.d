@@ -11,7 +11,7 @@ module three.gl.vao;
 import derelict.opengl3.gl3;
 import three.gl.util;
 
-
+import std.stdio;
 //==============================================================================
 ///
 final class VertexArrayObject {
@@ -22,11 +22,14 @@ public:
 	///
 	this() {
 		check!glGenVertexArrays(1, &this._id);
+		writeln("vao created: ", this._id);
 	}
 
 	///
 	~this() {
+		writeln("vao destroxing..: ", this._id);
 		check!glDeleteVertexArrays(1, &this._id);
+		writeln("vao destroyed: ", this._id);
 	}
 	
 public:		   

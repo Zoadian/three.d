@@ -11,6 +11,7 @@ module three.gl.renderbuffer;
 import derelict.opengl3.gl3;
 import three.gl.util;
 
+import std.stdio;
 
 //==============================================================================
 ///
@@ -22,11 +23,13 @@ public:
 	///
 	this() {
 		check!glGenRenderbuffers(1, &this._id);
+		writeln("Renderbuffer created: ", this._id);
 	}
 
 	///
 	~this() {
 		check!glDeleteRenderbuffers(1, &this._id); 
+		writeln("Renderbuffer destroxed: ", this._id);
 	}
 	
 public:	  

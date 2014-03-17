@@ -11,12 +11,11 @@ import three.glfw.window;
 
 import std.stdio;
 import std.conv;
-import std.typecons;
 
 
 private static FT_Library _s_freeTypeLibrary;
 
-Unique!(Window) initThree() {
+Window initThree() {
 	"Starting Three.d".writeln();
 
 	"Loading OpenGL".writeln();
@@ -41,7 +40,7 @@ Unique!(Window) initThree() {
 	if(!glfwInit()) throw new Exception("Initialising GLFW failed");
 
 	"Creating Window".writeln();
-	Unique!(Window) window = new Window("Fray", 1600, 900);
+	auto window = new Window("Fray", 1600, 900);
 	
 	"ReLoading OpenGL".writeln();
 	try {
@@ -57,7 +56,7 @@ Unique!(Window) initThree() {
 	"Initialising AntTweakBar".writeln();
 	if(TwInit(TW_OPENGL_CORE, null) == 0) throw new Exception("Initialising AntTweakBar failed");
 
-	return window.release();
+	return window;
 }
 
 void deinitThree() { 

@@ -45,7 +45,7 @@ enum BufferUsageHint {
 	DynamicCopy = GL_DYNAMIC_COPY
 }
 
-
+import std.stdio;
 //==============================================================================
 ///
 final class VertexBufferObject(VertexBufferObjectTarget target) {
@@ -56,11 +56,13 @@ public:
 	///
 	this() {
 		check!glGenBuffers(1, &this._id);
+		writeln("vbo created: ", this._id);
 	}
 
 	///
 	~this() {
 		check!glDeleteBuffers(1, &this._id);
+		writeln("vbo destroyed: ", this._id);
 	}
 	
 public:		 

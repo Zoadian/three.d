@@ -15,6 +15,7 @@ import std.string;
 import stdx.signals;
 
 import three.gfx.color;
+import std.stdio;
 
 //==============================================================================
 ///
@@ -72,6 +73,7 @@ public:
 
 		this.makeAktiveRenderWindow();
 		this.clear(1,0,0,1);
+		writeln("Window created: ", this._glfwWindow);
 	}
 
 	///
@@ -89,6 +91,7 @@ public:
 		glfwSetCharCallback(this._glfwWindow, null);
 
 		glfwDestroyWindow(this._glfwWindow);
+		writeln("Window destroyed: ", this._glfwWindow);
 	}
 
 public:		  
