@@ -6,16 +6,16 @@ License:   $(WEB http://www.gnu.org/licenses/lgpl.html, LGPLv3).
 
 Authors:   $(WEB zoadian.de, Felix 'Zoadian' Hufnagel)
 */
-module three.gfx.color;
+module three.primitives.color;
 
 import std.typecons;
 import std.typetuple;
 import std.conv;
 
-struct RedColorComponent(T) { T r; alias r this; }
-struct GreenColorComponent(T) { T g; alias g this; }
-struct BlueColorComponent(T) { T b; alias b this; }
-struct AlphaColorComponent(T) { T a; alias a this; }
+struct RedColorComponent(T) { T r; alias r this; this(T t){r=t;} }
+struct GreenColorComponent(T) { T g; alias g this; this(T t){g=t;} }
+struct BlueColorComponent(T) { T b; alias b this; this(T t){b=t;} }
+struct AlphaColorComponent(T) { T a; alias a this; this(T t){a=t;} }
 
 ///
 enum isRedColorComponent(T) = is(typeof(_isRedColorComponent(T.init)));
@@ -46,18 +46,18 @@ enum isBGR(T...) = T.length == 3 && isBlueColorComponent!(T[0]) && isGreenColorC
 enum isBGRA(T...) = T.length == 4 && isBGR!(T[0..3]) && isAlphaColorComponent!(T[3]);
 enum isABGR(T...) = T.length == 4 && isAlphaColorComponent!(T[3]) && isBGR!(T[0..3]);
 																 
-alias RGB(T) = TypeTuple!(RedColorComponent!T, GreenColorComponent!T, BlueColorComponent!T);						   
-alias RGBA(T) = TypeTuple!(RGB!T, AlphaColorComponent!T);
-alias ARGB(T) = TypeTuple!(AlphaColorComponent!T, RGB!T);
+alias RGBColorComponents(T) = TypeTuple!(RedColorComponent!T, GreenColorComponent!T, BlueColorComponent!T);						   
+alias RGBAColorComponents(T) = TypeTuple!(RGBColorComponents!T, AlphaColorComponent!T);
+alias ARGBColorComponents(T) = TypeTuple!(AlphaColorComponent!T, RGBColorComponents!T);
 																	
-alias BGR(T) = TypeTuple!(BlueColorComponent!T, GreenColorComponent!T, RedColorComponent!T);						   
-alias BGRA(T) = TypeTuple!(BGR!T, AlphaColorComponent!T);
-alias ABGR(T) = TypeTuple!(AlphaColorComponent!T, BGR!T);
+alias BGRColorComponents(T) = TypeTuple!(BlueColorComponent!T, GreenColorComponent!T, RedColorComponent!T);						   
+alias BGRAColorComponents(T) = TypeTuple!(BGRColorComponents!T, AlphaColorComponent!T);
+alias ABGRColorComponents(T) = TypeTuple!(AlphaColorComponent!T, BGRColorComponents!T);
 
 
 enum isValidColorComponentDefinition(T...) = allSatisfy!(isRGBAColorComponent, T) && NoDuplicates!(T).length == T.length;
 
-static assert(isValidColorComponentDefinition!(RGBA!float));
+static assert(isValidColorComponentDefinition!(RGBAColorComponents!float));
 
 private string _genMembers(size_t IDX, N...)() {
 	string ret;
@@ -67,7 +67,7 @@ private string _genMembers(size_t IDX, N...)() {
 	return ret;
 }		
 
-private mixin template _GenAccessors(size_t IDX, T...) {
+private mixin template _GenAccessors(size_t IDX, T...) if(T.length > 0) {
 	static if(T.length == 1) {
 		mixin(_genMembers!(IDX, __traits(allMembers, T[0]))());
 	}
@@ -77,7 +77,16 @@ private mixin template _GenAccessors(size_t IDX, T...) {
 	}
 }
 
-struct Color(COMPONENTS...) if (isValidColorComponentDefinition!COMPONENTS) {
+struct Color(COMPONENTS...) if(COMPONENTS.length > 0 && isValidColorComponentDefinition!COMPONENTS) {
 	COMPONENTS _components;		
+
+	this(T...)(T t) {
+		this._components[] = t[];
+	}
+
 	mixin _GenAccessors!(0, COMPONENTS);  
 }
+
+
+alias RGBAf = Color!(RGBAColorComponents!float);
+alias RGBf = Color!(RGBAColorComponents!float);

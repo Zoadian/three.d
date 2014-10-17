@@ -14,7 +14,6 @@
 		"derelict-fi" : "~master",
 		"derelict-assimp3" : "~master",
 		"derelict_extras-anttweakbar" : "~master",
-		"stdx" : "~master",
 		"nitro" : "~master"
 	}
 }

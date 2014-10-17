@@ -14,7 +14,6 @@ import derelict.glfw3.glfw3;
 import std.string;
 import stdx.signals;
 
-import three.gfx.color;
 import std.stdio;
 
 //==============================================================================

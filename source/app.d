@@ -24,17 +24,8 @@ struct UV {
 	float u, v;
 }
 
-struct Color {
-	float r, g, b, a;
-}
 
-struct Vector {
-	float x, y, z;
-}
 
-struct Quaternion {
-	float x, y, z, w;
-}
 
 
 
@@ -44,7 +35,7 @@ public:
 	Vertex[] vertexData;
 	Normal[] normalData;
 	UV[] textureData;
-	Color[] colorData;
+	RGBAf[] colorData;
 
 	VertexArrayObject vao;
 	VertexBufferObject!(VertexBufferObjectTarget.Array) vboVertexData;
@@ -80,7 +71,7 @@ public:
 					vertexData ~= Vertex(p.x, p.y, p.z);
 					normalData ~= Normal(n.x, n.y, n.z);
 					textureData ~= UV(uv.x, uv.y);
-					colorData ~= Color(n.x, n.y, n.z, 1.0f);
+					colorData ~= RGBAf(n.x, n.y, n.z, 1.0f);
 				}
 			}
 		}
@@ -124,7 +115,7 @@ public:
 		vboColorData = new VertexBufferObject!(VertexBufferObjectTarget.Array);
 		vboColorData.bind();
 		attribIndex = 3;
-		glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Color.sizeof * colorData.length) , colorData.ptr, GL_STATIC_DRAW);		
+		glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(RGBAf.sizeof * colorData.length) , colorData.ptr, GL_STATIC_DRAW);		
 		glEnableVertexAttribArray(attribIndex);
 		glVertexAttribPointer(attribIndex, 4, GL_FLOAT, GL_FALSE, 0, cast(void*)0);
 		vboColorData.unbind();		
@@ -133,7 +124,6 @@ public:
 		writeln("done");
 	}
 }
-
 
 void setupTweakbar() {
 	writeln("creating TweakBar");
@@ -146,30 +136,30 @@ void setupTweakbar() {
 	float bgColor[3]   = [0.1f, 0.2f, 0.4f]; // Background color
 	ubyte cubeColor[4] = [255, 0, 0, 128];   // Model color (32bits RGBA)
 	
-	auto quat = Quaternion(0,0,0,1);
+	auto quat = Quaternionf(0,0,0,1);
 	
 	//		auto w = this._window.getBounds()[2];
 	//		auto h = this._window.getBounds()[3];
 	TwWindowSize(1600, 900);
 	
-	// Create a tweak bar
-	auto bar = TwNewBar("TweakBar");
-	TwDefine(" GLOBAL help='This example shows how to integrate AntTweakBar with GLFW and OpenGL.' "); // Message added to the help bar.		
-	// Add 'speed' to 'bar': it is a modifable (RW) variable of type TW_TYPE_DOUBLE. Its key shortcuts are [s] and [S].
-	TwAddVarRW(bar, "speed", TW_TYPE_DOUBLE, &speed, " label='Rot speed' min=0 max=2 step=0.01 keyIncr=s keyDecr=S help='Rotation speed (turns/second)' ");		
-	// Add 'wire' to 'bar': it is a modifable variable of type TW_TYPE_BOOL32 (32 bits boolean). Its key shortcut is [w].
-	TwAddVarRW(bar, "wire", TW_TYPE_BOOL32, &wire, " label='Wireframe mode' key=CTRL+w help='Toggle wireframe display mode.' ");		
-	// Add 'time' to 'bar': it is a read-only (RO) variable of type TW_TYPE_DOUBLE, with 1 precision digit
-	TwAddVarRO(bar, "time", TW_TYPE_DOUBLE, &time, " label='Time' precision=1 help='Time (in seconds).' ");
-	//
-	TwAddVarRO(bar, "frameCount", TW_TYPE_UINT32, &frameCount, " label='FrameCount' precision=1 help='FrameCount (in counts).' ");
-	TwAddVarRO(bar, "fps", TW_TYPE_DOUBLE, &fps, " label='fps' precision=1 help='fps (in fps).' ");		
-	// Add 'bgColor' to 'bar': it is a modifable variable of type TW_TYPE_COLOR3F (3 floats color)
-	TwAddVarRW(bar, "bgColor", TW_TYPE_COLOR3F, &bgColor, " label='Background color' ");		
-	// Add 'cubeColor' to 'bar': it is a modifable variable of type TW_TYPE_COLOR32 (32 bits color) with alpha
-	TwAddVarRW(bar, "cubeColor", TW_TYPE_COLOR32, &cubeColor, " label='Cube color' alpha help='Color and transparency of the cube.' ");
-	//
-	//		TwAddVarRW(bar, "quaternion", TW_TYPE_QUAT4F, &quat, " label='Cube color' alpha help='Color and transparency of the cube.' ");
+//	// Create a tweak bar
+//	auto bar = TwNewBar("TweakBar");
+//	TwDefine(" GLOBAL help='This example shows how to integrate AntTweakBar with GLFW and OpenGL.' "); // Message added to the help bar.		
+//	// Add 'speed' to 'bar': it is a modifable (RW) variable of type TW_TYPE_DOUBLE. Its key shortcuts are [s] and [S].
+//	TwAddVarRW(bar, "speed", TW_TYPE_DOUBLE, &speed, " label='Rot speed' min=0 max=2 step=0.01 keyIncr=s keyDecr=S help='Rotation speed (turns/second)' ");		
+//	// Add 'wire' to 'bar': it is a modifable variable of type TW_TYPE_BOOL32 (32 bits boolean). Its key shortcut is [w].
+//	TwAddVarRW(bar, "wire", TW_TYPE_BOOL32, &wire, " label='Wireframe mode' key=CTRL+w help='Toggle wireframe display mode.' ");		
+//	// Add 'time' to 'bar': it is a read-only (RO) variable of type TW_TYPE_DOUBLE, with 1 precision digit
+//	TwAddVarRO(bar, "time", TW_TYPE_DOUBLE, &time, " label='Time' precision=1 help='Time (in seconds).' ");
+//	//
+//	TwAddVarRO(bar, "frameCount", TW_TYPE_UINT32, &frameCount, " label='FrameCount' precision=1 help='FrameCount (in counts).' ");
+//	TwAddVarRO(bar, "fps", TW_TYPE_DOUBLE, &fps, " label='fps' precision=1 help='fps (in fps).' ");		
+//	// Add 'bgColor' to 'bar': it is a modifable variable of type TW_TYPE_COLOR3F (3 floats color)
+//	TwAddVarRW(bar, "bgColor", TW_TYPE_COLOR3F, &bgColor, " label='Background color' ");		
+//	// Add 'cubeColor' to 'bar': it is a modifable variable of type TW_TYPE_COLOR32 (32 bits color) with alpha
+//	TwAddVarRW(bar, "cubeColor", TW_TYPE_COLOR32, &cubeColor, " label='Cube color' alpha help='Color and transparency of the cube.' ");
+//	//
+//	TwAddVarRW(bar, "quaternion", TW_TYPE_QUAT4F, &quat, " label='Cubde color' alpha help='Color anwdwd transparency of the cube.' ");
 }
 
 //-----------------
@@ -247,6 +237,7 @@ class Tester {
 	}
 
 	void run() {
+		RGBAf rgg;
 
 		auto mesh = new Mesh("C:/Coding/models/Collada/duck.dae");
 
