@@ -1,7 +1,8 @@
-Three.d
+Three.d - A high performance 3D graphics engine
 ======
 
-Three.d is a 3D Graphic Engine written in the D Programming Language.
+Three.d is high performance 3D graphics engine written in the D Programming Language.
+ * Data-oriented design
 
 
 License: 
