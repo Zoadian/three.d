@@ -122,9 +122,20 @@ public:
 		glfwMakeContextCurrent(this._glfwWindow);
 	}
 
-	///
-	WindowRect getBounds() const @safe nothrow {
-		return [_x, _y, _w, _h];
+	uint x() const @safe nothrow {
+		return _x;
+	}	
+
+	uint y() const @safe nothrow {
+		return _y;
+	}
+
+	uint width() const @safe nothrow {
+		return _w;
+	}	
+	
+	uint height() const @safe nothrow {
+		return _h;
 	}
 
 	///
