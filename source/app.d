@@ -11,6 +11,450 @@ import derelict.glfw3.glfw3;
 import derelict.assimp3.assimp;
 
 import std.string;
+import std.experimental.logger;
+
+//======================================================================================================================
+// GBuffer
+//======================================================================================================================
+struct GBuffer {
+	GLuint hDepth;
+	GLuint hNormal;
+	GLuint hColor;
+	GLuint hFin;
+	GLuint hStencil;
+};
+
+GBuffer createGBuffer() {
+	GBuffer gBuffer;
+
+	check!glGenTextures(1, &gBuffer.hDepth);		
+	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hDepth);
+	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, width, height);
+	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_FLOAT, null);	
+	check!glBindTexture(GL_TEXTURE_2D, 0);
+	
+	check!glGenTextures(1, &gBuffer.hNormal);
+	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hNormal);
+	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB10_A2, width, height);
+	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, null);	
+	check!glBindTexture(GL_TEXTURE_2D, 0);
+	
+	check!glGenTextures(1, &gBuffer.hColor);
+	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hColor);
+	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, null);	
+	check!glBindTexture(GL_TEXTURE_2D, 0);
+	
+	check!glGenTextures(1, &gBuffer.hFin);
+	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hFin);
+	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB32F, width, height);
+	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, null);	
+	check!glBindTexture(GL_TEXTURE_2D, 0);
+	
+	check!glGenTextures(1, &gBuffer.hStencil);
+	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hStencil);
+	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, width, height);
+	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, null);	
+	check!glBindTexture(GL_TEXTURE_2D, 0);
+
+	return gBuffer;
+}
+
+void destroyGBuffer(ref GBuffer gBuffer) {
+	check!glDeleteTextures(1, &gBuffer.hStencil);
+	check!glDeleteTextures(1, &gBuffer.hFin);
+	check!glDeleteTextures(1, &gBuffer.hColor);
+	check!glDeleteTextures(1, &gBuffer.hNormal);
+	check!glDeleteTextures(1, &gBuffer.hDepth);
+}
+
+
+//======================================================================================================================
+// FrameBuffer
+//======================================================================================================================
+struct FrameBuffer {
+	GLuint hFrameBuffer;
+};
+
+FrameBuffer createFrameBuffer() {
+	FrameBuffer frameBuffer;
+
+	check!glGenFramebuffers(1, &frameBuffer.hFrameBuffer); 
+	check!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBuffer.hFrameBuffer);
+	check!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 0, GL_TEXTURE_2D, gBuffer.hDepth, 0);
+	check!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 1, GL_TEXTURE_2D, gBuffer.hNormal, 0);
+	check!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 2, GL_TEXTURE_2D, gBuffer.hColor, 0);
+	check!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 3, GL_TEXTURE_2D, gBuffer.hFin, 0);
+	check!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer.hStencil, 0);
+	check!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+	return frameBuffer;
+}
+
+void destroyFrameBuffer(ref FrameBuffer frameBuffer) {
+	check!glDeleteFramebuffers(1, &frameBuffer.hFrameBuffer);
+}
+
+
+//======================================================================================================================
+// ShaderPipeline
+//======================================================================================================================
+struct ShaderPipeline {
+	GLuint hShaderPipeline;
+};
+
+ShaderPipeline createShaderPipeline() {
+	ShaderPipeline shaderPipeline;
+
+	glGenProgramPipelines(1, &shaderPipeline.hShaderPipeline); 
+
+	return shaderPipeline;
+}
+
+void destroyShaderPipeline(ref ShaderPipeline shaderPipeline) {
+	glDeleteProgramPipelines(1, &shaderPipeline.hShaderPipeline);
+}
+
+
+//======================================================================================================================
+// ShaderProgram
+//======================================================================================================================
+struct ShaderProgram {
+	GLuint hShaderProgram;
+};
+
+ShaderProgram createShaderProgram(string source) {
+	ShaderProgram shaderProgram;
+
+	auto szSource = [source.toStringz()];
+	shaderProgram.hShaderProgram = check!glCreateShaderProgramv(GL_VERTEX_SHADER, 1, szSource.ptr);
+
+	debug {
+		int len;
+		check!glGetProgramiv(this._id, GL_INFO_LOG_LENGTH , &len);
+		if (len > 1) {
+			char[] msg = new char[len];
+			check!glGetProgramInfoLog(this._id, len, null, cast(char*) msg);
+			error(cast(string)msg);
+		}
+	}
+
+	return shaderProgram;
+}
+
+void destroyShaderProgram(ref ShaderProgram shaderProgram) {
+	check!glDeleteProgram(shaderProgram.hShaderProgram);
+}
+
+
+//======================================================================================================================
+// VertexArrayObject
+//======================================================================================================================
+struct VertexArrayObject {
+	GLuint hVertexArrayObject;
+}
+
+VertexArrayObject createVertexArrayObject() {
+	VertexArrayObject vertexArrayObject;
+	check!glGenVertexArrays(1, &vertexArrayObject.hVertexArrayObject);	
+	return vertexArrayObject;
+}
+
+void destroyVertexArrayObject(ref VertexArrayObject vertexArrayObject) {
+	check!glDeleteVertexArrays(1, &vertexArrayObject.hVertexArrayObject);
+}
+
+
+//======================================================================================================================
+// VertexBufferObject
+//======================================================================================================================
+struct VertexBufferObject {
+	GLuint hVertexBufferObject;
+}
+
+VertexBufferObject createVertexBufferObject() {
+	VertexBufferObject vertexBufferObject;
+	check!glGenBuffers(1, &vertexBufferObject.hVertexBufferObject);
+	return vertexBufferObject;
+}
+
+void destroyVertexArrayObject(ref VertexBufferObject vertexBufferObject) {
+	check!glDeleteVertexArrays(1, &vertexBufferObject.hVertexBufferObject);
+}
+
+	
+
+//======================================================================================================================
+// 
+//======================================================================================================================		
+final class Camera {
+}
+
+final class Viewport {
+	int x;
+	int y;
+	int width;
+	int height;
+}
+
+final class Scene {
+	VertexBufferObject[] vertexBufferObjects;
+	VertexArrayObject[] vertexArrayObjects;
+}
+
+
+struct RenderGroup {
+	Scene scene;
+	Camera camera;
+	Viewport viewport;
+}
+
+
+
+class OpenGlRenderer {
+private:
+	Window _window;
+
+	GBuffer _gBuffer;
+	GBuffer _frameBuffer;
+
+	ShaderProgram _geometryPassVertexShader;
+	ShaderProgram _geometryPassFragmentShader;
+
+	ShaderProgram _stencilPassVertexShader;
+	ShaderProgram _stencilPassFragmentShader;
+
+	ShaderProgram _pointLightPassVertexShader;
+	ShaderProgram _pointLightPassFragmentShader;
+
+	ShaderPipeline _shaderPipeline;
+
+	Camera[] _cameras;
+	Viewport[] _viewports;
+	Scene[] _scenes;
+
+	RenderGroup[] _renderGroups;
+
+public:
+	this(Window window) {
+		_window = window;
+
+		_gBuffer = createGBuffer();
+
+		_frameBuffer = createFrameBuffer();
+
+		_geometryPassVertexShader = createShaderProgram("TODO: load and pass source code");
+		_geometryPassFragmentShader = createShaderProgram("TODO: load and pass source code");
+
+		_stencilPassVertexShader = createShaderProgram("TODO: load and pass source code");
+		_stencilPassFragmentShader = createShaderProgram("TODO: load and pass source code");
+
+		_pointLightPassVertexShader = createShaderProgram("TODO: load and pass source code");
+		_pointLightPassFragmentShader = createShaderProgram("TODO: load and pass source code");
+
+		_shaderPipeline = createShaderPipeline();
+	}
+
+	~this() {
+		destroyShaderPipeline(_shaderPipeline);
+
+		destroyShaderProgram(_pointLightPassFragmentShader);
+		destroyShaderProgram(_pointLightPassVertexShader);
+
+		destroyShaderProgram(_stencilPassFragmentShader);
+		destroyShaderProgram(_stencilPassVertexShader);
+
+		destroyShaderProgram(_geometryPassFragmentShader);
+		destroyShaderProgram(_geometryPassVertexShader);
+
+		destroyFrameBuffer(_frameBuffer);
+
+		destroyGBuffer(_gBuffer);
+	}
+
+	void run() {
+		//--------------------------------------------------------------------------------------------------------------
+		// Render Loop
+		//--------------------------------------------------------------------------------------------------------------
+		while(_keepRunning) {
+			_window.makeAktiveRenderWindow();
+
+			glClearColor(0, 0, 0, 1);
+			glClearDepth(1.0);
+
+			for(renderGroup; _renderGroups) {
+				with(renderGroup.viewport) glViewport(x, y, width, height);
+
+				geometryPass();
+				lightningPass();
+				finalPass();
+			}
+		}
+	}
+
+	void stop() {
+		this._keepRunning = false;
+	}
+
+private:
+	//------------------------------------------------------------------------------------------------------------------
+	// Geometry Pass		
+	//------------------------------------------------------------------------------------------------------------------
+	void geometryPass() {
+		//enable depth mask _before_ glClear ing the depth buffer!
+		check!glDepthMask(GL_TRUE);
+		check!glEnable(GL_DEPTH_TEST);		
+		check!glDepthFunc(GL_LEQUAL);	
+		
+		check!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _frameBuffer.hframeBuffer); 
+		check!glDrawBuffer(GL_COLOR_ATTACHMENT3);
+		GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2];
+		check!glDrawBuffers(drawBuffers.length, drawBuffers.ptr);
+		check!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		
+		glBindProgramPipeline(shaderPipeline.hShaderPipeline);
+		
+		foreach(vao; _scenes) {
+			mesh._vertexData.bind();
+
+			glUseProgramStages(_shaderPipeline.hShaderPipeline, GL_VERTEX_SHADER_BIT, _geometryPassVertexShader);
+			glUseProgramStages(_shaderPipeline.hShaderPipeline, GL_FRAGMENT_SHADER_BIT, _geometryPassFragmentShader);
+			
+			setCullMode(CullMode.Back);
+			mesh._vertexShader.sendUniform("u_vpMatrix", camera.viewProjectionMatrix);	
+			mesh._fragmentShader.sendTexture("u_textureImage", this._texture, 0);
+			
+			foreach(model; this._models) {
+				mesh._vertexShader.sendUniform("u_modelMatrix", model.modelMatrix);	
+				check!glDrawArrays(GL_TRIANGLES, 0, 36);
+			}
+			
+			mesh._vertexData.unbind();
+		}
+		
+		glBindProgramPipeline(0);
+		
+		check!glDepthMask(GL_FALSE);
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Lightning Pass		
+	//------------------------------------------------------------------------------------------------------------------
+	void lightningPass() {
+		this.framebuffer.bind(FrameBuffer.Target.Write);  
+		check!glDrawBuffer(GL_COLOR_ATTACHMENT3);
+		
+		check!glEnable(GL_STENCIL_TEST);
+		foreach(pointLight; scene.pointLights)
+		{
+			//------------------------------------------------------------------------------------------------------
+			// Stencil Pass
+			//------------------------------------------------------------------------------------------------------
+			glBindProgramPipeline(shaderPipeline.hShaderPipeline);
+			
+			this.framebuffer.bind(FrameBuffer.Target.Write); 
+			check!glDrawBuffer(GL_NONE);
+			check!glClear(GL_STENCIL_BUFFER_BIT);//TODO: reqired?
+			
+			this._vao.bind();
+			check!glEnable(GL_DEPTH_TEST);
+			check!glDisable(GL_CULL_FACE);
+			check!glStencilFunc(GL_ALWAYS, 0, 0);
+			check!glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR, GL_KEEP);
+			check!glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR, GL_KEEP);		
+			
+			glUseProgramStages(shaderPipeline.hShaderPipeline, GL_VERTEX_SHADER_BIT, stencilPassVertexShader);
+			glUseProgramStages(shaderPipeline.hShaderPipeline, GL_FRAGMENT_SHADER_BIT, stencilPassFragmentShader);
+			
+			this.vertexShader.sendUniform("u_mvpMatrix", camera.viewProjectionMatrix * pointLight.modelMatrix);
+			
+			check!glDrawArrays(GL_TRIANGLES, 0, 36);
+			
+			this._vao.unbind();
+			
+			glBindProgramPipeline(0);
+			
+			//------------------------------------------------------------------------------------------------------
+			// PointLight Pass
+			//------------------------------------------------------------------------------------------------------
+			glBindProgramPipeline(shaderPipeline.hShaderPipeline);
+			//~				camera.gbuffer.bind(GBuffer.Pass.Lighting);
+			this.framebuffer.bind(FrameBuffer.Target.Write);  
+			check!glDrawBuffer(GL_COLOR_ATTACHMENT3);
+			
+			this._vao.bind();
+			
+			check!glDisable(GL_DEPTH_TEST);
+			
+			check!glEnable(GL_BLEND);
+			check!glBlendFunc(GL_ONE, GL_ONE);
+			check!glBlendEquation(GL_FUNC_ADD);
+			
+			check!glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
+			
+			check!glEnable(GL_CULL_FACE);
+			check!glCullFace(GL_FRONT);
+			
+			
+			glUseProgramStages(shaderPipeline.hShaderPipeline, GL_VERTEX_SHADER_BIT, pointLightPassVertexShader);
+			glUseProgramStages(shaderPipeline.hShaderPipeline, GL_FRAGMENT_SHADER_BIT, pointLightPassFragmentShader);
+			
+			this.vertexShader.sendUniform("u_mvpMatrix", camera.viewProjectionMatrix * pointLight.modelMatrix);
+			
+			this.fragmentShader.sendUniform("u_viewport", Vec4f(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height));
+			this.fragmentShader.sendUniform("u_viewProjMatrix", camera.viewProjectionMatrix);
+			this.fragmentShader.sendUniform("u_projMatrix", camera.projectionMatrix);
+			this.fragmentShader.sendUniform("u_viewMatrix", camera.viewMatrix);
+			this.fragmentShader.sendTexture("u_gbuffer.depth", camera.gbuffer.depth, 0);
+			this.fragmentShader.sendTexture("u_gbuffer.normal", camera.gbuffer.normal, 1);
+			this.fragmentShader.sendTexture("u_gbuffer.color", camera.gbuffer.color, 2);
+			this.fragmentShader.sendTexture("u_gbuffer.depthstencil", camera.gbuffer.depthstencil, 4);
+			
+			
+			this.fragmentShader.sendUniform("u_light.color", pointLight.color);
+			this.fragmentShader.sendUniform("u_light.ambientIntensity", pointLight.ambientIntensity);
+			this.fragmentShader.sendUniform("u_light.diffuseIntensity", pointLight.diffuseIntensity);
+			this.fragmentShader.sendUniform("u_light.constant", pointLight.constant);
+			this.fragmentShader.sendUniform("u_light.linear", pointLight.linear);
+			this.fragmentShader.sendUniform("u_light.exp", pointLight.exp);
+			this.fragmentShader.sendUniform("u_light.position", pointLight.position);
+			
+			check!glDrawArrays(GL_TRIANGLES, 0, 36);
+			
+			this._vao.unbind();
+			
+			check!glDisable(GL_BLEND);
+			
+			glBindProgramPipeline(0);
+		}
+		check!glDisable(GL_STENCIL_TEST);
+	}
+	
+	//------------------------------------------------------------------------------------------------------------------
+	// Final Pass		
+	//------------------------------------------------------------------------------------------------------------------
+	void finalPass() {
+		check!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		check!glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		check!glReadBuffer(GL_COLOR_ATTACHMENT3);
+		with(camera.viewport) {
+			check!glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);	
+		}
+		
+		_window.swapBuffers();
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
 
 struct Vertex {
 	float x, y, z;
@@ -330,8 +774,64 @@ class Tester {
 }
 
 
-void main() {
+class InputHandler {
+private:
+	Window _window;
+	OpenGlRenderer _renderer;
 
-	Unique!(Tester) tester = new Tester();	
-	tester.run();
+public:
+	this(Window window, OpenGlRenderer renderer) {
+		_window = window;
+		_renderer = renderer;
+
+		_window.onKey.connect!"_onKey"(this);
+		_window.onClose.connect!"_onClose"(this);
+		_window.onSize.connect!"_onSize"(this);
+		_window.onPosition.connect!"_onPosition"(this);
+		_window.onButton.connect!"_onButton"(this);
+		_window.onCursorPos.connect!"_onCursorPos"(this);
+	}
+
+private:
+	void _onKey(Window window, Key key, ScanCode scanCode, KeyAction action, KeyMod keyMod) {
+		if(window is _window && action == KeyAction.Pressed) {
+			if(key == Key.Escape) {
+				_renderer.stop();
+			}
+		}
+	}
+	
+	void _onClose(Window window) {
+		_renderer.stop();
+	}
+
+	void _onSize(Window window, int width, int height) {
+	}
+	
+	void _onPosition(Window window, int x, int y) {
+	}
+	
+	void _onButton(Window window , int button, ButtonAction action) {
+	}
+	
+	void _onCursorPos(Window window, double x, double y) {
+	}
+}
+
+void main() {
+	auto window = initThree();
+	{
+		OpenGlRenderer renderer = new OpenGlRenderer(window);
+
+		InputHandler inputHandler = new InputHandler(window, renderer);
+
+		renderer.run();
+	}
+	
+	import core.memory;
+	GC.collect();
+	//Collect window _AFTER_ everything else
+	this._window = null;
+	GC.collect();
+	deinitThree();
 }
