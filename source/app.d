@@ -1,17 +1,561 @@
 import std.stdio;
 
-import three;
 import std.typecons;
 
 import derelict.opengl3.gl3;
-import three.gl.util;
-
-import derelict.anttweakbar.anttweakbar;
 import derelict.glfw3.glfw3;
+import derelict.anttweakbar.anttweakbar;
+import derelict.freeimage.freeimage;	
+import derelict.freetype.ft;
 import derelict.assimp3.assimp;
 
 import std.string;
 import std.experimental.logger;
+
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+import std.traits : ReturnType;
+ReturnType!func glCheck(alias func, Args...)(Args args) {
+	import std.stdio;
+	import std.stdio : stderr;
+	import std.array : join;
+	import std.range : repeat;
+	import std.string : format;
+	try{
+		debug scope(exit) {
+			GLenum err = glGetError();
+			if(err != GL_NO_ERROR) {
+				stderr.writefln(`OpenGL function "%s(%s)" failed: "%s."`, func.stringof, format("%s".repeat(Args.length).join(", "), args), glErrorString(err));
+				assert(false);
+			}
+		}
+	}
+	catch(Exception e){
+	}
+	
+	debug if(func is null) {
+		try{
+			stderr.writefln("%s is null! OpenGL loaded? Required OpenGL version not supported?".format(func.stringof));
+		}
+		catch(Exception e){
+			assert(false);
+		}
+		assert(false);
+	}	
+	return func(args);
+}
+
+string glErrorString(GLenum error) pure @safe nothrow @nogc {
+	final switch(error) {
+		case GL_NO_ERROR: return "no error";
+		case GL_INVALID_ENUM: return "invalid enum";
+		case GL_INVALID_VALUE: return "invalid value";
+		case GL_INVALID_OPERATION: return "invalid operation";
+			//case GL_STACK_OVERFLOW: return "stack overflow";
+			//case GL_STACK_UNDERFLOW: return "stack underflow";
+		case GL_INVALID_FRAMEBUFFER_OPERATION: return "invalid framebuffer operation";
+		case GL_OUT_OF_MEMORY: return "out of memory";
+	}
+	assert(false, "invalid enum");
+}
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+alias SoA(T) = T[];
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct SOAVector3 {
+	SoA!float x;
+	SoA!float y;
+	SoA!float z;
+}
+
+struct SOAQuaternion {
+	SoA!float x;
+	SoA!float y;
+	SoA!float z;
+	SoA!float w;
+}
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct Window {
+private:
+	GLFWwindow* glfwWindow = null;
+	string _title;
+	uint _x, _y, _w, _h;
+	KeyAction[int] _keyStates;
+	ButtonAction[int] _buttonStates;
+}
+
+alias ScanCode = int;
+
+enum IconifyAction {
+	Iconified,
+	Restored
+}
+
+enum FocusAction {
+	Focused,
+	Defocused
+}
+
+enum CursorAction {
+	Entered,
+	Leaved
+}
+
+enum ButtonAction {
+	Pressed,
+	Released
+}
+
+enum KeyAction {
+	Pressed,
+	Released,
+	Repeated
+}
+
+enum KeyMod {
+	Shift = 0x0001,
+	Control = 0x0002,
+	Alt = 0x0004,
+	Super = 0x0008,
+}
+
+enum Key {
+	Unknown = -1,
+	Space = 32,
+	Apostrophe = 39,
+	Comma = 44,
+	Minus = 45,
+	Period = 46,
+	Slash = 47,
+	Key0 = 48,
+	Key1 = 49,
+	Key2 = 50,
+	Key3 = 51,
+	Key4 = 52,
+	Key5 = 53,
+	Key6 = 54,
+	Key7 = 55,
+	Key8 = 56,
+	Key9 = 57,
+	Semicolon = 59,
+	Equal = 61,
+	KeyA = 65,
+	KeyB = 66,
+	KeyC = 67,
+	KeyD = 68,
+	KeyE = 69,
+	KeyF = 70,
+	KeyG = 71,
+	KeyH = 72,
+	KeyI = 73,
+	KeyJ = 74,
+	KeyK = 75,
+	Keyl = 76,
+	KeyM = 77,
+	KeyN = 78,
+	KeyO = 79,
+	KeyP = 80,
+	KeyQ = 81,
+	KeyR = 82,
+	KeyS = 83,
+	KeyT = 84,
+	KeyU = 85,
+	KeyV = 86,
+	KeyW = 87,
+	KeyX = 88,
+	KeyY = 89,
+	KeyZ = 90,
+	LeftBracket = 91,
+	Backslash = 92,
+	RightBracket = 93,
+	GraveAccent = 96,
+	World1 = 161,
+	World2 = 162,
+	Escape = 256,
+	Enter = 257,
+	Tab = 258,
+	Backspace = 259,
+	Insert = 260,
+	Delete = 261,
+	Right = 262,
+	Left = 263,
+	Down = 264,
+	Up = 265,
+	PageUp = 266,
+	PageDown = 267,
+	Home = 268,
+	End = 269,
+	CapsLock = 280,
+	ScrollLock = 281,
+	NumLock = 282,
+	PrintScreen = 283,
+	Pause = 284,
+	F1 = 290,
+	F2 = 291,
+	F3 = 292,
+	F4 = 293,
+	F5 = 294,
+	F6 = 295,
+	F7 = 296,
+	F8 = 297,
+	F9 = 298,
+	F10 = 299,
+	F11 = 300,
+	F12 = 301,
+	F13 = 302,
+	F14 = 303,
+	F15 = 304,
+	F16 = 305,
+	F17 = 306,
+	F18 = 307,
+	F19 = 308,
+	F20 = 309,
+	F21 = 310,
+	F22 = 311,
+	F23 = 312,
+	F24 = 313,
+	F25 = 314,
+	NumBlock0 = 320,
+	NumBlock1 = 321,
+	NumBlock2 = 322,
+	NumBlock3 = 323,
+	NumBlock4 = 324,
+	NumBlock5 = 325,
+	NumBlock6 = 326,
+	NumBlock7 = 327,
+	NumBlock8 = 328,
+	NumBlock9 = 329,
+	KpDecimal = 330,
+	KpDivide = 331,
+	KpMultiply = 332,
+	KpSubtract = 333,
+	KpAdd = 334,
+	KpEnter = 335,
+	KpEqual = 336,
+	LeftShift = 340,
+	LeftControl = 341,
+	LeftAlt = 342,
+	LeftSuper = 343,
+	RightShift = 344,
+	RightControl = 345,
+	RightAlt = 346,
+	RightSuper = 347,
+	Menu = 348
+}
+
+void construct(out Window window, string title, uint width, uint height) nothrow {
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+	
+	glfwDefaultWindowHints();
+	glfwWindowHint(GLFW_RED_BITS, 8);
+	glfwWindowHint(GLFW_GREEN_BITS, 8);
+	glfwWindowHint(GLFW_BLUE_BITS, 8);
+	glfwWindowHint(GLFW_ALPHA_BITS, 0);
+	glfwWindowHint(GLFW_DEPTH_BITS, 24);
+	glfwWindowHint(GLFW_STENCIL_BITS, 8);
+	window.glfwWindow = glfwCreateWindow(width, height, title.toStringz(), null, null);
+	assert(window.glfwWindow !is null);
+
+//	glfwSetWindowUserPointer(window.glfwWindow, cast(void*)&window);
+//	glfwSetWindowPosCallback(window.glfwWindow, cast(GLFWwindowposfun)&_GLFWwindowposfun);
+//	glfwSetWindowSizeCallback(window.glfwWindow, cast(GLFWwindowsizefun)&_GLFWwindowsizefun);
+//	glfwSetWindowCloseCallback(window.glfwWindow, cast(GLFWwindowclosefun)&_GLFWwindowclosefun);
+//	glfwSetWindowRefreshCallback(window.glfwWindow, cast(GLFWwindowrefreshfun)&_GLFWwindowrefreshfun);
+//	glfwSetWindowIconifyCallback(window.glfwWindow, cast(GLFWwindowiconifyfun)&_GLFWwindowiconifyfun);
+//	glfwSetMouseButtonCallback(window.glfwWindow, cast(GLFWmousebuttonfun)&_GLFWmousebuttonfun);
+//	glfwSetCursorPosCallback(window.glfwWindow, cast(GLFWcursorposfun)&_GLFWcursorposfun);
+//	//glfwSetCursorEnterCallback(window.glfwWindow, cast(GLFWcursorenterfunfun)&_GLFWcursorenterfunfun);
+//	glfwSetScrollCallback(window.glfwWindow, cast(GLFWscrollfun)&_GLFWscrollfun);
+//	glfwSetKeyCallback(window.glfwWindow, cast(GLFWkeyfun)&_GLFWkeyfun);
+//	glfwSetCharCallback(window.glfwWindow, cast(GLFWcharfun)&_GLFWcharfun);
+
+	glfwMakeContextCurrent(window.glfwWindow);
+}
+
+void destruct(ref Window window) nothrow @nogc {
+//	glfwSetWindowPosCallback(window.glfwWindow, null);
+//	glfwSetWindowSizeCallback(window.glfwWindow, null);
+//	glfwSetWindowCloseCallback(window.glfwWindow, null);
+//	glfwSetWindowRefreshCallback(window.glfwWindow, null);
+//	glfwSetWindowIconifyCallback(window.glfwWindow, null);
+//	glfwSetMouseButtonCallback(window.glfwWindow, null);
+//	glfwSetCursorPosCallback(window.glfwWindow, null);
+//	//glfwSetCursorEnterCallback(this._glfwWindow, null);
+//	glfwSetScrollCallback(window.glfwWindow, null);
+//	glfwSetKeyCallback(window.glfwWindow, null);
+//	glfwSetCharCallback(window.glfwWindow, null);
+	
+	glfwDestroyWindow(window.glfwWindow);
+
+	window = Window.init;
+}
+
+void makeAktiveRenderWindow(ref Window window) nothrow @nogc {
+	glfwMakeContextCurrent(window.glfwWindow);
+}
+
+void swapBuffers(ref Window window) nothrow @nogc {
+	glfwSwapBuffers(window.glfwWindow);
+}
+
+void pollEvents(ref Window window) nothrow @nogc {
+	glfwPollEvents();
+}
+
+@property void setTitle(ref Window window, string title) nothrow {
+	glfwSetWindowTitle(window.glfwWindow, title.toStringz());
+}
+
+uint x(ref Window window) pure @safe nothrow @nogc {
+	return window._x;
+}	
+
+uint y(ref Window window) pure @safe nothrow @nogc {
+	return window._y;
+}
+
+uint width(ref Window window) pure @safe nothrow @nogc {
+	return window._w;
+}	
+
+uint height(ref Window window) pure @safe nothrow @nogc {
+	return window._h;
+}
+
+KeyAction keyState(ref Window window, int key) pure @safe nothrow {
+	try {
+		return window._keyStates.get(key, KeyAction.Released);
+	}
+	catch(Exception) {
+		return KeyAction.Released;
+	}
+}
+
+ButtonAction buttonState(ref Window window, int button) pure @safe nothrow {
+	try {
+		return window._buttonStates.get(button, ButtonAction.Released);
+	}
+	catch(Exception) {
+		return ButtonAction.Released;
+	}
+}
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct Viewport {
+}
+void construct(out Viewport viewport) pure @safe nothrow @nogc {
+}
+
+void destruct(ref Viewport viewport) pure @safe nothrow @nogc {
+	viewport = Viewport.init;
+}
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct Scene {
+	SOAMesh mesh;
+}
+
+void construct(out Scene scene) pure @safe nothrow @nogc {
+}
+
+void destruct(ref Scene scene) pure @safe nothrow @nogc {
+	scene = Scene.init;
+}
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct Camera {
+}
+
+void construct(out Camera camera) pure @safe nothrow @nogc {
+}
+
+void destruct(ref Camera camera) pure @safe nothrow @nogc {
+	camera = Camera.init;
+}
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct DeferredRenderer {
+	struct GBuffer {
+	}
+
+	GBuffer gBuffer;
+}
+
+void construct(out DeferredRenderer deferredRenderer) pure @safe nothrow @nogc {
+}
+
+void destruct(ref DeferredRenderer deferredRenderer) pure @safe nothrow @nogc {
+
+	deferredRenderer = DeferredRenderer.init;
+}
+
+void renderOneFrame(ref DeferredRenderer deferredRenderer, ref Viewport viewport, ref Scene scene, ref Camera camera) nothrow {
+	// 1. Render the (opaque) geometry into the G-Buffers.	
+	// 2. Construct a screen space grid, covering the frame buffer, with some fixed tile
+	//    size, t = (x, y), e.g. 32 × 32 pixels.	
+	// 3. For each light: find the screen space extents of the light volume and append the
+	//    light ID to each affected grid cell.	
+	// 4. For each fragment in the frame buffer, with location f = (x, y).
+	//    (a) sample the G-Buffers at f.
+	//    (b) accumulate light contributions from all lights in tile at ⌊f /t⌋
+	//    (c) output total light contributions to frame buffer at f
+
+	scope(exit) glCheck!glBindVertexArray(0);
+	scope(exit) glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); // TODO: GL_ELEMENT_ARRAY_BUFFER should be vao state, but bugs might make this necessary
+
+	for(size_t meshIdx = 0; meshIdx < scene.mesh.cnt; ++meshIdx) {
+		glCheck!glBindVertexArray(scene.mesh.vao[meshIdx]); 
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene.mesh.vboIndices[meshIdx]); // TODO: GL_ELEMENT_ARRAY_BUFFER should be vao state, but bugs might make this necessary
+
+		glDrawElements(GL_TRIANGLES, scene.mesh.cntIndices[meshIdx], GL_UNSIGNED_SHORT, null);
+	}
+}
+
+
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct SOAMesh {
+	SoA!GLuint vao;
+	SoA!GLuint vboVertices;
+	SoA!GLuint vboNormals;
+	SoA!GLuint vboTexcoords;
+	SoA!GLuint vboIndices;
+	SoA!GLuint cntIndices;
+	size_t cnt;
+}
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+void main() {
+	Window window;
+	Viewport viewport;
+	Scene scene;
+	Camera camera;
+	DeferredRenderer deferredRenderer;
+
+	DerelictGL3.load();
+	DerelictGLFW3.load();
+	DerelictFI.load();
+//	DerelictFT.load();
+	DerelictASSIMP3.load();
+	DerelictAntTweakBar.load();
+	if(!glfwInit()) throw new Exception("Initialising GLFW failed"); scope(exit) glfwTerminate();
+
+	window.construct("Three.d", 1600, 900); scope(exit) window.destruct();
+
+	try {
+		GLVersion glVersion = DerelictGL3.reload();
+		import std.conv : to;
+		writeln("Reloaded OpenGL Version: ", to!string(glVersion)); 
+	} catch(Exception e) {
+		writeln("Reloading OpenGl failed: " ~ e.msg);
+	}
+
+//	static FT_Library _s_freeTypeLibrary
+//	if(!FT_Init_FreeType(&_s_freeTypeLibrary)) throw new Exception("Initialising FreeType failed"); scope(exit) FT_Done_FreeType(_s_freeTypeLibrary);
+	if(TwInit(TW_OPENGL_CORE, null) == 0) throw new Exception("Initialising AntTweakBar failed"); scope(exit) TwTerminate();
+
+	viewport.construct(); scope(exit) window.destruct();
+	scene.construct(); scope(exit) window.destruct();
+	camera.construct(); scope(exit) window.destruct();
+	deferredRenderer.construct(); scope(exit) deferredRenderer.destruct();
+
+	while(true) {
+		window.pollEvents();
+
+		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glCheck!glClearDepth(1.0f);
+		glCheck!glClearColor(0.5, 0, 0, 1);
+
+		deferredRenderer.renderOneFrame(viewport, scene, camera);
+
+		window.swapBuffers();
+	}
+}
+
+
+
+
+
+
+
+
+
+
+//struct BoundingBox
+//{
+//	vec4 min;
+//	vec4 max;
+//	vec4 material;
+//}
+//
+//struct Mesh {
+//	vec3[] vertices;
+//	vec3[] normals;
+//	vec2[] texcoords;
+//	ushort[] indices;
+//	string texname;
+//	vec3 color;
+//}
+//
+//struct GlMesh {
+//	GLuint vertex_array;
+//	GLuint vbo_indices;
+//	GLuint num_indices;
+//	GLuint vbo_vertices;
+//	GLuint vbo_normals;
+//	GLuint vbo_texcoords;
+//	vec3 color;
+//	string texname;
+//	BoundingBox boundingBox;
+//}
+//
+//GlMesh uploadMesh(Mesh mesh) {
+//	GlMesh glMesh;
+//
+//	glGenVertexArrays(1, &(glMesh.vertex_array));
+//	glBindVertexArray(glMesh.vertex_array);
+//
+//	glGenBuffers(1, &(glMesh.vbo_vertices));
+//	glGenBuffers(1, &(glMesh.vbo_normals));
+//	glGenBuffers(1, &(glMesh.vbo_indices));
+//	glGenBuffers(1, &(glMesh.vbo_texcoords));
+//}
+//
+
+
+
+
+/+++
+
 
 //======================================================================================================================
 // GBuffer
@@ -29,12 +573,21 @@ GBuffer createGBuffer() {
 
 	check!glGenTextures(1, &gBuffer.hDepth);		
 	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hDepth);
-	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, width, height);
-	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_FLOAT, null);	
+	check!glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	check!glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	check!glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	check!glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	check!glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, width, height);
+	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, null);	
 	check!glBindTexture(GL_TEXTURE_2D, 0);
 	
 	check!glGenTextures(1, &gBuffer.hNormal);
 	check!glBindTexture(GL_TEXTURE_2D, gBuffer.hNormal);
+	check!glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	check!glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	
+	check!glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	check!glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	with(_window) check!glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB10_A2, width, height);
 	with(_window) check!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, null);	
 	check!glBindTexture(GL_TEXTURE_2D, 0);
@@ -835,3 +1388,6 @@ void main() {
 	GC.collect();
 	deinitThree();
 }
+
+
++++/

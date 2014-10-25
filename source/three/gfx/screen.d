@@ -1,6 +1,6 @@
 module three.gfx.scene;
 
-
+/+++
 
 struct PositionGraph {
 	struct InternalId {
@@ -211,3 +211,6 @@ struct Scene {
 // 2 3 5 6
 //         ^x
 //
+
+
++++/
