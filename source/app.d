@@ -728,6 +728,10 @@ void main() {
 
 	scene.mesh.loadModel("C:/Coding/models/Collada/duck.dae");
 
+
+	TwWindowSize(window.width, window.height);
+	auto tweakBar = TwNewBar("TweakBar");
+
 	while(true) {
 		window.pollEvents();
 
@@ -738,6 +742,8 @@ void main() {
 		glCheck!glClearColor(0.5, 0, 0, 1);
 
 		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
+
+		TwDraw();
 
 		window.swapBuffers();
 	}
