@@ -10,18 +10,18 @@ private:
 	ButtonAction[int] _buttonStates;
 
 public:							
-	void delegate(Window*, int, int) onPosition;	 
-	void delegate(Window*, int, int) onSize;	 
-	void delegate(Window*) onClose;		
-	void delegate(Window*) onRefresh;			
-	void delegate(Window*, FocusAction) onFocus;	  
-	void delegate(Window*, IconifyAction) onIconify;	
-	void delegate(Window*, bool) onCursorEnter;		
-	void delegate(Window*, int, ButtonAction) onButton;	
-	void delegate(Window*, double, double) onCursorPos; 
-	void delegate(Window*, double, double) onScroll;	
-	void delegate(Window*, Key, ScanCode, KeyAction, KeyMod) onKey;   
-	void delegate(Window*, int) onChar;
+	void delegate(ref Window, int, int) onPosition;	 
+	void delegate(ref Window, int, int) onSize;	 
+	void delegate(ref Window) onClose;		
+	void delegate(ref Window) onRefresh;			
+	void delegate(ref Window, FocusAction) onFocus;	  
+	void delegate(ref Window, IconifyAction) onIconify;	
+	void delegate(ref Window, bool) onCursorEnter;		
+	void delegate(ref Window, int, ButtonAction) onButton;	
+	void delegate(ref Window, double, double) onCursorPos; 
+	void delegate(ref Window, double, double) onScroll;	
+	void delegate(ref Window, Key, ScanCode, KeyAction, KeyMod) onKey;   
+	void delegate(ref Window, int) onChar;
 }
 
 alias ScanCode = int;
@@ -308,64 +308,64 @@ private extern(C) void _GLFWwindowposfun(GLFWwindow* glfwWindow, int x, int y) {
 	window._y = y;
 	window._width = w;
 	window._height = h;
-	if(window.onPosition) window.onPosition(window, x, y);
+	if(window.onPosition) window.onPosition(*window, x, y);
 }
 
 private extern(C) void _GLFWwindowsizefun(GLFWwindow* glfwWindow, int width, int height) {												 
 	Window* window = _castWindow(glfwWindow);
 	window._width = width;
 	window._height = height;
-	if(window.onSize) window.onSize(window, width, height);
+	if(window.onSize) window.onSize(*window, width, height);
 }
 
 private extern(C) void _GLFWwindowclosefun(GLFWwindow* glfwWindow) {				  
 	Window* window = _castWindow(glfwWindow);
-	if(window.onClose) window.onClose(window);
+	if(window.onClose) window.onClose(*window);
 }
 
 private extern(C) void _GLFWwindowrefreshfun(GLFWwindow* glfwWindow) {													 
 	Window* window = _castWindow(glfwWindow);
-	if(window.onRefresh) window.onRefresh(window);
+	if(window.onRefresh) window.onRefresh(*window);
 }
 
 private extern(C) void _GLFWwindowfocusfun(GLFWwindow* glfwWindow, int focused) {													 
 	Window* window = _castWindow(glfwWindow);
-	if(window.onFocus) window.onFocus(window, (focused == GL_TRUE) ? FocusAction.Focused : FocusAction.Defocused);
+	if(window.onFocus) window.onFocus(*window, (focused == GL_TRUE) ? FocusAction.Focused : FocusAction.Defocused);
 }
 
 private extern(C) void _GLFWwindowiconifyfun(GLFWwindow* glfwWindow, int iconified) {												 
 	Window* window = _castWindow(glfwWindow);
-	if(window.onIconify) window.onIconify(window, (iconified == GL_TRUE) ? IconifyAction.Iconified : IconifyAction.Restored);
+	if(window.onIconify) window.onIconify(*window, (iconified == GL_TRUE) ? IconifyAction.Iconified : IconifyAction.Restored);
 }
 
 private extern(C) void _GLFWcursorenterfun(GLFWwindow* glfwWindow, int entered) {
 	Window* window = _castWindow(glfwWindow);
-	if(window.onCursorEnter) window.onCursorEnter(window, (entered == GL_TRUE) ? CursorAction.Entered : CursorAction.Leaved);
+	if(window.onCursorEnter) window.onCursorEnter(*window, (entered == GL_TRUE) ? CursorAction.Entered : CursorAction.Leaved);
 }
 
 private extern(C) void _GLFWmousebuttonfun(GLFWwindow* glfwWindow, int button, int action) { 
 	Window* window = _castWindow(glfwWindow);
 	window._buttonStates[button] = (action == GLFW_PRESS) ? ButtonAction.Pressed : ButtonAction.Released;
-	if(window.onButton) window.onButton(window, button, (action == GLFW_PRESS) ? ButtonAction.Pressed : ButtonAction.Released);
+	if(window.onButton) window.onButton(*window, button, (action == GLFW_PRESS) ? ButtonAction.Pressed : ButtonAction.Released);
 }
 
 private extern(C) void _GLFWcursorposfun(GLFWwindow* glfwWindow, double x, double y) {
 	Window* window = _castWindow(glfwWindow);
-	if(window.onCursorPos) window.onCursorPos(window, x, window._height - y);
+	if(window.onCursorPos) window.onCursorPos(*window, x, window._height - y);
 }
 
 private extern(C) void _GLFWscrollfun(GLFWwindow* glfwWindow, double x, double y) {	
 	Window* window = _castWindow(glfwWindow);
-	if(window.onScroll) window.onScroll(window, x, y);
+	if(window.onScroll) window.onScroll(*window, x, y);
 }
 
 private extern(C) void _GLFWkeyfun(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods) {  
 	Window* window = _castWindow(glfwWindow);
 	window._keyStates[key] = (action == GLFW_PRESS || action == GLFW_REPEAT) ? KeyAction.Pressed : KeyAction.Released;
-	if(window.onKey) window.onKey(window, cast(Key)key, cast(ScanCode)scancode, cast(KeyAction)action, cast(KeyMod)mods);
+	if(window.onKey) window.onKey(*window, cast(Key)key, cast(ScanCode)scancode, cast(KeyAction)action, cast(KeyMod)mods);
 }
 
 private extern(C) void _GLFWcharfun(GLFWwindow* glfwWindow, uint character) { 
 	Window* window = _castWindow(glfwWindow);
-	if(window.onChar) window.onChar(window, character);
+	if(window.onChar) window.onChar(*window, character);
 }

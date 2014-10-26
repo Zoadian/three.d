@@ -40,6 +40,10 @@ void main() {
 	OpenGlTiledDeferredRenderer renderer;
 	bool keepRunning = true;
 
+
+	//------------------------------------------------
+	// Load and Construct Rendering Pipeline
+	//------------------------------------------------
 	DerelictGL3.load();
 	DerelictGLFW3.load();
 	DerelictFI.load();
@@ -68,14 +72,24 @@ void main() {
 	renderTarget.construct(window.width, window.height); scope(exit) renderTarget.destruct();
 	renderer.construct(window.width, window.height); scope(exit) renderer.destruct();
 
+
+	//------------------------------------------------
+	// Create Scene
+	//------------------------------------------------
 	scene.mesh.loadModel("C:/Coding/models/Collada/duck.dae");
 
 
+	//------------------------------------------------
+	// Generate TweakBar
+	//------------------------------------------------
 	TwWindowSize(window.width, window.height);
 	auto tweakBar = TwNewBar("TweakBar");
 
 
-	window.onKey = (Window* pWindow, Key key, ScanCode scanCode, KeyAction action, KeyMod keyMod) {
+	//------------------------------------------------
+	// Connect Window callbacks
+	//------------------------------------------------
+	window.onKey = (ref Window rWindow, Key key, ScanCode scanCode, KeyAction action, KeyMod keyMod) {
 		if(window is window && action == KeyAction.Pressed) {
 			if(key == Key.Escape) {
 				keepRunning = false;
@@ -83,18 +97,18 @@ void main() {
 		}
 	};
 
-	window.onClose = (Window* pWindow) {
+	window.onClose = (ref Window rWindow) {
 		keepRunning = false;
 	};
 
-	window.onSize = (Window* pWindow, int width, int height) {
+	window.onSize = (ref Window rWindow, int width, int height) {
 		TwWindowSize(width, height);		
 	};
 
-	window.onPosition = (Window* pWindow, int x, int y) {		
+	window.onPosition = (ref Window rWindow, int x, int y) {
 	};
 
-	window.onButton = (Window* pWindow , int button, ButtonAction action) {
+	window.onButton = (ref Window rWindow , int button, ButtonAction action) {
 		TwMouseAction twaction = action == ButtonAction.Pressed ? TW_MOUSE_PRESSED : TW_MOUSE_RELEASED;
 		TwMouseButtonID twbutton;
 		
@@ -108,19 +122,14 @@ void main() {
 		TwMouseButton(twaction, twbutton);		
 	};
 
-	window.onCursorPos = (Window* pWindow, double x, double y) {
+	window.onCursorPos = (ref Window rWindow, double x, double y) {
 		TwMouseMotion(cast(int)x, window.height - cast(int)y);
 	};
 
 
-
-
-
-
-
-
-
-
+	//------------------------------------------------
+	// Main Loop
+	//------------------------------------------------
 	while(keepRunning) {
 		window.pollEvents();
 
