@@ -130,6 +130,8 @@ void main() {
 	//------------------------------------------------
 	// Main Loop
 	//------------------------------------------------
+	ulong frameCount = 0;
+	glfwSetTime(0);
 	while(keepRunning) {
 		window.pollEvents();
 
@@ -144,6 +146,14 @@ void main() {
 		TwDraw();
 
 		window.swapBuffers();
+
+		++frameCount;
+		if(frameCount % 1000 == 0) {
+			auto fps = cast(double)frameCount / glfwGetTime();
+			log("FPS: ", fps);
+			frameCount = 0;
+			glfwSetTime(0);
+		}
 	}
 }
 

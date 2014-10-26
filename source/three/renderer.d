@@ -6,7 +6,40 @@ import three.camera;
 import three.renderTarget;
 import three.viewport;
 
+enum forwardRendererVertexShaderSource = "
+	#version 420 core
 
+	layout(location = 0) in vec3 in_position;
+	layout(location = 1) in vec3 in_normal;
+	layout(location = 2) in vec2 in_texcoord;
+	layout(location = 3) in vec4 in_color;
+
+
+	out vec4 v_color;	
+
+	out gl_PerVertex 
+	{
+    	vec4 gl_Position;
+ 	};
+
+	void main()
+	{
+		gl_Position = vec4(0.005 * in_position.x, 0.005 * in_position.y, 0.005* in_position.z, 1.0);
+    	v_color = in_color;
+	}
+";
+
+enum forwardRendererFragmentShaderSource = "
+	#version 420 core
+	in vec4 v_color;
+
+	out vec4 FragColor;
+
+	void main()
+	{
+		FragColor = v_color;
+	}
+";
 
 struct GBuffer {
 	uint width;
@@ -82,7 +115,26 @@ struct Pipeline {
 }
 
 void construct(out Pipeline pipeline) nothrow {
-	glGenProgramPipelines(1, &pipeline.pipeline); 
+	glCheck!glGenProgramPipelines(1, &pipeline.pipeline); 
+
+	import std.string : toStringz;
+	auto szVertexSource = [forwardRendererVertexShaderSource.toStringz()];
+	pipeline.vertexShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_VERTEX_SHADER, 1, szVertexSource.ptr);
+
+	auto szFragmentSource = [forwardRendererFragmentShaderSource.toStringz()];
+	pipeline.fragmentShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, szFragmentSource.ptr);
+
+	glCheck!glUseProgramStages(pipeline.pipeline, GL_VERTEX_SHADER_BIT, pipeline.vertexShaderGeometryPass);
+	glCheck!glUseProgramStages(pipeline.pipeline, GL_FRAGMENT_SHADER_BIT, pipeline.fragmentShaderGeometryPass);
+
+	glCheck!glActiveShaderProgram(pipeline.pipeline, pipeline.vertexShaderGeometryPass);
+	glCheck!glActiveShaderProgram(pipeline.pipeline, pipeline.fragmentShaderGeometryPass);
+
+	glCheck!glValidateProgramPipeline(pipeline.pipeline); 
+	GLint status;
+	glCheck!glGetProgramPipelineiv(pipeline.pipeline, GL_VALIDATE_STATUS, &status);
+	//TODO: add error handling
+	assert(status != 0);
 }
 
 void destruct(ref Pipeline pipeline) nothrow {
@@ -98,15 +150,17 @@ struct OpenGlTiledDeferredRenderer {
 
 void construct(out OpenGlTiledDeferredRenderer deferredRenderer, uint width, uint height) nothrow {
 	deferredRenderer.gBuffer.construct(width, height);
+	deferredRenderer.pipeline.construct();
 }
 
 void destruct(ref OpenGlTiledDeferredRenderer deferredRenderer) nothrow {
+	deferredRenderer.pipeline.destruct();
 	deferredRenderer.gBuffer.destruct();
 	deferredRenderer = OpenGlTiledDeferredRenderer.init;
 }
 
 // draw the scene supersampled with renderer's with+height onto renderTarget at position+size of viewport
-void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, ref Camera camera, ref RenderTarget renderTarget, ref Viewport viewport) nothrow {
+void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, ref Camera camera, ref RenderTarget renderTarget, ref Viewport viewport) {
 	// 1. Render the (opaque) geometry into the G-Buffers.	
 	// 2. Construct a screen space grid, covering the frame buffer, with some fixed tile
 	//    size, t = (x, y), e.g. 32 × 32 pixels.	
@@ -126,12 +180,12 @@ void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, r
 	glCheck!glDepthFunc(GL_LEQUAL);
 	
 	//bind gBuffer
-	glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.gBuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
-	glCheck!glDrawBuffer(GL_COLOR_ATTACHMENT0 + 0);
-	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2];
-	glCheck!glDrawBuffers(drawBuffers.length, drawBuffers.ptr);
-	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+//	glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.gBuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
+//	glCheck!glDrawBuffer(GL_COLOR_ATTACHMENT0 + 0);
+//	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+//	GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2];
+//	glCheck!glDrawBuffers(drawBuffers.length, drawBuffers.ptr);
+//	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	
 	//bind pipeline
 	glCheck!glBindProgramPipeline(renderer.pipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
