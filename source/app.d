@@ -139,11 +139,13 @@ void main() {
 
 		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glCheck!glClearDepth(1.0f);
-		glCheck!glClearColor(0.5, 0, 0, 1);
+		glCheck!glClearColor(0, 0.3, 0, 1);
 
 		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
 
 		TwDraw();
+
+		debug{ renderer.blitGBufferToScreen(); }
 
 		window.swapBuffers();
 

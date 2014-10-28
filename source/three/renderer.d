@@ -6,7 +6,10 @@ import three.camera;
 import three.renderTarget;
 import three.viewport;
 
-enum forwardRendererVertexShaderSource = "
+import std.string : toStringz;
+import std.exception : collectException;
+
+enum deferredRendererVertexShaderSource = "
 	#version 420 core
 
 	layout(location = 0) in vec3 in_position;
@@ -14,37 +17,57 @@ enum forwardRendererVertexShaderSource = "
 	layout(location = 2) in vec2 in_texcoord;
 	layout(location = 3) in vec4 in_color;
 
-
-	out vec4 v_color;	
+	//==============
+	out vec2 _normal;
+	out vec2 _texture;
+	out vec3 _color;
+	//==============
 
 	out gl_PerVertex 
 	{
     	vec4 gl_Position;
  	};
 
-	void main()
+	vec2 encode(vec3 n)
 	{
-		gl_Position = vec4(0.005 * in_position.x, 0.005 * in_position.y, 0.005* in_position.z, 1.0);
-    	v_color = in_color;
+	    float f = sqrt(8*n.z+8);
+	    return n.xy / f + 0.5;
 	}
+	
+	void main() 
+	{        				
+		gl_Position = vec4(0.005 * in_position.x, 0.005 * in_position.y, 0.005* in_position.z, 1.0);
+		_normal = encode(in_normal);
+		_texture = in_texcoord;
+		_color = in_color.xyz;
+	};
 ";
 
-enum forwardRendererFragmentShaderSource = "
+enum deferredRendererFragmentShaderSource = "
 	#version 420 core
-	in vec4 v_color;
 
-	out vec4 FragColor;
+	//==============
+	in vec2 _normal;
+	in vec2 _texture;
+	in vec3 _color;
+	//==============
+
+	layout(location = 0) out float depth;
+	layout(location = 1) out vec4 normal;
+	layout(location = 2) out vec4 color;
 
 	void main()
 	{
-		FragColor = v_color;
+		depth = gl_FragCoord.z;
+		normal.xy = _normal.xy;
+		color.xyz = _color;
 	}
 ";
 
 struct GBuffer {
 	uint width;
 	uint height;
-	GLuint textureDepth;
+	GLuint texturePosition;
 	GLuint textureNormal;
 	GLuint textureColor;
 	GLuint textureDepthStencil;
@@ -55,15 +78,15 @@ void construct(out GBuffer gBuffer, uint width, uint height) nothrow {
 	gBuffer.width = width;
 	gBuffer.height = height;
 	
-	glCheck!glGenTextures(1, &gBuffer.textureDepth);		
-	glCheck!glBindTexture(GL_TEXTURE_2D, gBuffer.textureDepth);
+	glCheck!glGenTextures(1, &gBuffer.texturePosition);		
+	glCheck!glBindTexture(GL_TEXTURE_2D, gBuffer.texturePosition);
 	glCheck!glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glCheck!glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	//	glCheck!glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	//	glCheck!glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	//	glCheck!glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
-	glCheck!glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, width, height);
-	glCheck!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, null);	
+	glCheck!glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, width, height);
+	glCheck!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_FLOAT, null);	
 	glCheck!glBindTexture(GL_TEXTURE_2D, 0);
 	
 	glCheck!glGenTextures(1, &gBuffer.textureNormal);
@@ -91,7 +114,7 @@ void construct(out GBuffer gBuffer, uint width, uint height) nothrow {
 	glCheck!glGenFramebuffers(1, &gBuffer.fbo);
 	glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gBuffer.fbo);
 	
-	glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 0, GL_TEXTURE_2D, gBuffer.textureDepth, 0);
+	glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 0, GL_TEXTURE_2D, gBuffer.texturePosition, 0);
 	glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 1, GL_TEXTURE_2D, gBuffer.textureNormal, 0);
 	glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 2, GL_TEXTURE_2D, gBuffer.textureColor, 0);
 	glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer.textureDepthStencil, 0);
@@ -104,7 +127,7 @@ void destruct(ref GBuffer gBuffer) nothrow {
 	glCheck!glDeleteTextures(1, &gBuffer.textureDepthStencil);
 	glCheck!glDeleteTextures(1, &gBuffer.textureColor);
 	glCheck!glDeleteTextures(1, &gBuffer.textureNormal);
-	glCheck!glDeleteTextures(1, &gBuffer.textureDepth);
+	glCheck!glDeleteTextures(1, &gBuffer.texturePosition);
 	gBuffer = GBuffer.init;
 }
 
@@ -117,20 +140,30 @@ struct Pipeline {
 void construct(out Pipeline pipeline) nothrow {
 	glCheck!glGenProgramPipelines(1, &pipeline.pipeline); 
 
-	import std.string : toStringz;
-	auto szVertexSource = [forwardRendererVertexShaderSource.toStringz()];
+	auto szVertexSource = [deferredRendererVertexShaderSource.toStringz()];
 	pipeline.vertexShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_VERTEX_SHADER, 1, szVertexSource.ptr);
+	int len;
+	glCheck!glGetProgramiv(pipeline.vertexShaderGeometryPass, GL_INFO_LOG_LENGTH , &len);
+	if (len > 1) {
+		char[] msg = new char[len];
+		glCheck!glGetProgramInfoLog(pipeline.vertexShaderGeometryPass, len, null, cast(char*) msg);
+		log(cast(string)msg).collectException;
+	}
 
-	auto szFragmentSource = [forwardRendererFragmentShaderSource.toStringz()];
+	auto szFragmentSource = [deferredRendererFragmentShaderSource.toStringz()];
 	pipeline.fragmentShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, szFragmentSource.ptr);
+//	int len;
+	glCheck!glGetProgramiv(pipeline.fragmentShaderGeometryPass, GL_INFO_LOG_LENGTH , &len);
+	if (len > 1) {
+		char[] msg = new char[len];
+		glCheck!glGetProgramInfoLog(pipeline.fragmentShaderGeometryPass, len, null, cast(char*) msg);
+		log(cast(string)msg).collectException;
+	}
 
 	glCheck!glUseProgramStages(pipeline.pipeline, GL_VERTEX_SHADER_BIT, pipeline.vertexShaderGeometryPass);
 	glCheck!glUseProgramStages(pipeline.pipeline, GL_FRAGMENT_SHADER_BIT, pipeline.fragmentShaderGeometryPass);
 
-	glCheck!glActiveShaderProgram(pipeline.pipeline, pipeline.vertexShaderGeometryPass);
-	glCheck!glActiveShaderProgram(pipeline.pipeline, pipeline.fragmentShaderGeometryPass);
-
-	glCheck!glValidateProgramPipeline(pipeline.pipeline); 
+	glCheck!glValidateProgramPipeline(pipeline.pipeline);
 	GLint status;
 	glCheck!glGetProgramPipelineiv(pipeline.pipeline, GL_VALIDATE_STATUS, &status);
 	//TODO: add error handling
@@ -179,13 +212,12 @@ void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, r
 	glCheck!glDepthFunc(GL_LEQUAL);
 	
 	//bind gBuffer
-//	glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.gBuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
-//	glCheck!glDrawBuffer(GL_COLOR_ATTACHMENT0 + 0);
-//	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-//	GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2];
-//	glCheck!glDrawBuffers(drawBuffers.length, drawBuffers.ptr);
-//	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
+	glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.gBuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
+	GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0 + 0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2];
+	glCheck!glDrawBuffers(drawBuffers.length, drawBuffers.ptr); scope(exit) glCheck!glDrawBuffer(GL_NONE);
+	glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+//	glCheck!glClearColor(0, 0, 0.3, 1);
 	//bind pipeline
 	glCheck!glBindProgramPipeline(renderer.pipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
 	
@@ -200,5 +232,26 @@ void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, r
 
 			glCheck!glDrawElements(GL_TRIANGLES, scene.mesh.cntIndices[meshIdx], GL_UNSIGNED_INT, null);
 		}
+	}
+}
+
+
+debug {
+	void blitGBufferToScreen(ref OpenGlTiledDeferredRenderer renderer) {
+		glCheck!glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.gBuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_READ_FRAMEBUFFER, 0); 
+
+		GLsizei width = renderer.gBuffer.width;
+		GLsizei height = renderer.gBuffer.height;
+
+		scope(exit) glCheck!glReadBuffer(GL_NONE);
+
+		glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 0);
+		glCheck!glBlitFramebuffer(0, 0, width, height, 0, height-300, 400, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+		glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 1);
+		glCheck!glBlitFramebuffer(0, 0, width, height, 0, 0, 400, 300, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+		glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 2);
+		glCheck!glBlitFramebuffer(0, 0, width, height, width-400, height-300, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	}
 }

@@ -58,8 +58,8 @@ void loadModel(ref SOAMesh mesh, string filePath) {
 			}
 			glCheck!glGenBuffers(1, &mesh.vboVertices[meshIdx]);
 			glCheck!glBindBuffer(GL_ARRAY_BUFFER, mesh.vboVertices[meshIdx]); scope(exit) glCheck!glBindBuffer(GL_ARRAY_BUFFER, 0); 
-			GLuint attribIndex = 0;
-			glCheck!glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Vertex.sizeof * vertexData.length) , vertexData.ptr, GL_STATIC_DRAW);		
+			glCheck!glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Vertex.sizeof * vertexData.length) , vertexData.ptr, GL_STATIC_DRAW);	
+			GLuint attribIndex = 0;	
 			glCheck!glEnableVertexAttribArray(attribIndex);
 			glCheck!glVertexAttribPointer(attribIndex, Vertex.sizeof / ForeachType!Vertex.sizeof, GL_FLOAT, GL_FALSE, 0, cast(void*)0);
 		}
@@ -72,8 +72,8 @@ void loadModel(ref SOAMesh mesh, string filePath) {
 			}
 			glCheck!glGenBuffers(1, &mesh.vboNormals[meshIdx]);
 			glCheck!glBindBuffer(GL_ARRAY_BUFFER, mesh.vboNormals[meshIdx]); scope(exit) glCheck!glBindBuffer(GL_ARRAY_BUFFER, 0); 
-			GLuint attribIndex = 1;
-			glCheck!glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Normal.sizeof * normalData.length) , normalData.ptr, GL_STATIC_DRAW);		
+			glCheck!glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Normal.sizeof * normalData.length) , normalData.ptr, GL_STATIC_DRAW);	
+			GLuint attribIndex = 1;	
 			glCheck!glEnableVertexAttribArray(attribIndex);
 			glCheck!glVertexAttribPointer(attribIndex, Normal.sizeof / ForeachType!Normal.sizeof, GL_FLOAT, GL_FALSE, 0, cast(void*)0);
 		}
@@ -86,8 +86,8 @@ void loadModel(ref SOAMesh mesh, string filePath) {
 			}
 			glCheck!glGenBuffers(1, &mesh.vboTexcoords[meshIdx]);
 			glCheck!glBindBuffer(GL_ARRAY_BUFFER, mesh.vboTexcoords[meshIdx]); scope(exit) glCheck!glBindBuffer(GL_ARRAY_BUFFER, 0); 
-			GLuint attribIndex = 2;
 			glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(TexCoord.sizeof * textureData.length) , textureData.ptr, GL_STATIC_DRAW);		
+			GLuint attribIndex = 2;
 			glEnableVertexAttribArray(attribIndex);
 			glVertexAttribPointer(attribIndex, TexCoord.sizeof / ForeachType!TexCoord.sizeof, GL_FLOAT, GL_FALSE, 0, cast(void*)0);
 		}
@@ -100,8 +100,8 @@ void loadModel(ref SOAMesh mesh, string filePath) {
 			}
 			glCheck!glGenBuffers(1, &mesh.vboTexcoords[meshIdx]);
 			glCheck!glBindBuffer(GL_ARRAY_BUFFER, mesh.vboTexcoords[meshIdx]); scope(exit) glCheck!glBindBuffer(GL_ARRAY_BUFFER, 0); 
-			GLuint attribIndex = 2;
-			glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Color.sizeof * colorData.length) , colorData.ptr, GL_STATIC_DRAW);		
+			glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Color.sizeof * colorData.length) , colorData.ptr, GL_STATIC_DRAW);	
+			GLuint attribIndex = 3;	
 			glEnableVertexAttribArray(attribIndex);
 			glVertexAttribPointer(attribIndex, Color.sizeof / ForeachType!Color.sizeof, GL_FLOAT, GL_FALSE, 0, cast(void*)0);
 		}
@@ -118,11 +118,11 @@ void loadModel(ref SOAMesh mesh, string filePath) {
 				}
 			}
 			glCheck!glGenBuffers(1, &mesh.vboIndices[meshIdx]);
-			glCheck!glBindBuffer(GL_ARRAY_BUFFER, mesh.vboIndices[meshIdx]); scope(exit) glCheck!glBindBuffer(GL_ARRAY_BUFFER, 0); 
-			GLuint attribIndex = 3;
-			glCheck!glBufferData(GL_ARRAY_BUFFER, cast(ptrdiff_t)(Index.sizeof * indexData.length) , indexData.ptr, GL_STATIC_DRAW);		
-			glCheck!glEnableVertexAttribArray(attribIndex);
-			glCheck!glVertexAttribPointer(attribIndex, Index.sizeof / ForeachType!Index.sizeof, GL_UNSIGNED_INT, GL_FALSE, 0, cast(void*)0);
+			glCheck!glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.vboIndices[meshIdx]); scope(exit) glCheck!glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); 
+			glCheck!glBufferData(GL_ELEMENT_ARRAY_BUFFER, cast(ptrdiff_t)(Index.sizeof * indexData.length) , indexData.ptr, GL_STATIC_DRAW);	
+//			GLuint attribIndex = 4;	
+//			glCheck!glEnableVertexAttribArray(attribIndex);
+//			glCheck!glVertexAttribPointer(attribIndex, Index.sizeof / ForeachType!Index.sizeof, GL_UNSIGNED_INT, GL_FALSE, 0, cast(void*)0);
 		}
 	}
 }
