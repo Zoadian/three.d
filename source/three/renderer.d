@@ -53,7 +53,7 @@ struct GBuffer {
 
 void construct(out GBuffer gBuffer, uint width, uint height) nothrow {
 	gBuffer.width = width;
-	gBuffer.width = height;
+	gBuffer.height = height;
 	
 	glCheck!glGenTextures(1, &gBuffer.textureDepth);		
 	glCheck!glBindTexture(GL_TEXTURE_2D, gBuffer.textureDepth);
@@ -170,8 +170,7 @@ void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, r
 	//    (a) sample the G-Buffers at f.
 	//    (b) accumulate light contributions from all lights in tile at ⌊f /t⌋
 	//    (c) output total light contributions to frame buffer at f
-	
-	
+
 	with(renderer.gBuffer) glCheck!glViewport(0, 0, width, height);
 	
 	//enable depth mask _before_ glClear ing the depth buffer!
@@ -198,8 +197,8 @@ void renderOneFrame(ref OpenGlTiledDeferredRenderer renderer, ref Scene scene, r
 			glCheck!glBindVertexArray(scene.mesh.vao[meshIdx]); 
 			
 			glCheck!glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene.mesh.vboIndices[meshIdx]); // TODO: GL_ELEMENT_ARRAY_BUFFER should be vao state, but bugs might make this necessary
-			
-			glCheck!glDrawElements(GL_TRIANGLES, scene.mesh.cntIndices[meshIdx], GL_UNSIGNED_SHORT, null);
+
+			glCheck!glDrawElements(GL_TRIANGLES, scene.mesh.cntIndices[meshIdx], GL_UNSIGNED_INT, null);
 		}
 	}
 }

@@ -43,11 +43,12 @@ void loadModel(ref SOAMesh mesh, string filePath) {
 		alias TexCoord = float[2];
 		alias Color = float[4];
 		alias Index = uint[1];
-		
+
 		size_t cntIndices = 0;
 		foreach(f; 0..meshData.mNumFaces) {
 			cntIndices += meshData.mFaces[f].mNumIndices;				
 		}
+		mesh.cntIndices[meshIdx] = cntIndices;
 		
 		{// upload vertex data
 			Vertex[] vertexData;
