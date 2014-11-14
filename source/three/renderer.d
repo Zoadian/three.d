@@ -5,6 +5,7 @@ import three.scene;
 import three.camera;
 import three.renderTarget;
 import three.viewport;
+import three.mesh;
 
 import std.string : toStringz;
 import std.exception : collectException;
@@ -80,29 +81,6 @@ struct DrawElementsIndirectCommand {
 
 
 
-struct Position {
-	float x, y, z;
-}
-
-struct Normal {
-	float x, y, z;
-}
-
-struct Color {
-	float r, g, b, a;
-}
-
-struct Matrix4 {
-	float[4*4] data;
-}
-
-struct VertexData {
-	Position position;
-	Normal normal;
-	Color color;
-}
-
-alias IndexData = uint;
 
 struct DrawParameter {
 	Matrix4 transformationMatrix;
@@ -136,6 +114,9 @@ void destruct(ref Renderer renderer) {
 	renderer.perInstanceParamBuffer.destruct();
 	renderer.dispatchIndirectCommandBuffer.destruct();
 	renderer = renderer.init;
+}
+
+void uploadModelData(ref Renderer renderer, ModelData modelData) {
 }
 
 void renderOneFrame(ref Renderer renderer, ref Scene scene, ref Camera camera, ref RenderTarget renderTarget, ref Viewport viewport) {

@@ -1,5 +1,7 @@
 ﻿module three.rendererx;
 
+version(none) {
+
 import three.common;
 import three.scene;
 import three.camera;
@@ -280,4 +282,7 @@ debug {
 		glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 2);
 		glCheck!glBlitFramebuffer(0, 0, width, height, width-400, height-300, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	}
+}
+
+
 }

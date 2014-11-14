@@ -4,7 +4,6 @@ import three.common;
 import three.mesh;
 
 struct Scene {
-	SOAMesh mesh;
 }
 
 void construct(out Scene scene) pure @safe nothrow @nogc {

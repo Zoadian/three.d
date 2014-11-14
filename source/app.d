@@ -67,8 +67,9 @@ void main() {
 	//------------------------------------------------
 	// Create Scene
 	//------------------------------------------------
-	scene.mesh.loadModel("C:/Coding/models/Collada/duck.dae");
-	
+	ModelData modelData;
+	loadModelData(modelData, "C:/Coding/models/Collada/duck.dae");
+	renderer.uploadModelData(modelData);
 	
 	//------------------------------------------------
 	// Generate TweakBar
