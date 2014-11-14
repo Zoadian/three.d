@@ -2,6 +2,21 @@
 
 import three.common;
 
+struct DrawArraysIndirectCommand {
+	GLuint vertexCount;
+	GLuint instanceCount;
+	GLuint firstVertex;
+	GLuint baseInstance;
+}
+
+struct DrawElementsIndirectCommand {
+	GLuint count;
+	GLuint instanceCount;
+	GLuint firstIndex;
+	GLuint baseVertex;
+	GLuint baseInstance;
+}
+
 struct SOAMesh {
 	SoA!GLuint vao;
 	SoA!GLuint vboVertices;

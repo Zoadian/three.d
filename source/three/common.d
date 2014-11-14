@@ -62,3 +62,53 @@ string glErrorString(GLenum error) pure @safe nothrow @nogc {
 	}
 	assert(false, "invalid enum");
 }
+
+
+//==============================================================================
+///
+template toGlType(T) {
+	static if(is(T == byte)) {
+		enum toGlType = GL_BYTE;
+	} else static if(is(T == ubyte)) {
+		enum toGlType = GL_UNSIGNED_BYTE;
+	} else static if(is(T == short)) {
+		enum toGlType = GL_SHORT;
+	} else static if(is(T == ushort)) {
+		enum toGlType = GL_UNSIGNED_SHORT;
+	} else static if(is(T == int)) {
+		enum toGlType = GL_INT;
+	} else static if(is(T == uint)) {
+		enum toGlType = GL_UNSIGNED_INT;
+	} else static if(is(T == float)) {
+		enum toGlType = GL_FLOAT;
+	} else static if(is(T == double)) {
+		enum toGlType = GL_DOUBLE;
+	} else {
+		static assert(false, T.stringof ~ " cannot be represented as GLenum");
+	}
+}
+
+
+//==============================================================================
+///
+template sizeofGlType(GLenum t) {
+	static if(t == GL_BYTE) {
+		enum sizeofGlType = byte.sizeof;
+	} else static if(t == GL_UNSIGNED_BYTE) {
+		enum sizeofGlType = ubyte.sizeof;
+	} else static if(t == GL_SHORT) {
+		enum sizeofGlType = short.sizeof;
+	} else static if(t == GL_UNSIGNED_SHORT) {
+		enum sizeofGlType = ushort.sizeof;
+	} else static if(t == GL_INT) {
+		enum sizeofGlType = int.sizeof;
+	} else static if(t == GL_UNSIGNED_INT) {
+		enum sizeofGlType = uint.sizeof;
+	} else static if(t == GL_FLOAT) {
+		enum sizeofGlType = float.sizeof;
+	} else static if(t == GL_DOUBLE) {
+		enum sizeofGlType = double.sizeof;
+	} else {
+		static assert(false, T.stringof ~ " cannot be represented as D-Type");
+	}
+}

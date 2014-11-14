@@ -9,6 +9,394 @@ import std.experimental.logger;
 
 
 
+
+
+
+
+
+import three.window;
+import three.viewport;
+import three.camera;
+import three.renderTarget;
+import three.scene;
+import three.renderer;
+
+
+void main() {
+	Window window;	
+	Viewport viewport;
+	Scene scene;
+	Camera camera;
+	RenderTarget renderTarget;
+	//	OpenGlTiledDeferredRenderer renderer;
+	Renderer renderer;
+	bool keepRunning = true;
+
+	//------------------------------------------------
+	// Load and Construct Rendering Pipeline
+	//------------------------------------------------
+	DerelictGL3.load();
+	DerelictGLFW3.load();
+	DerelictFI.load();
+	//	DerelictFT.load();
+	DerelictASSIMP3.load();
+	DerelictAntTweakBar.load();
+	if(!glfwInit()) throw new Exception("Initialising GLFW failed"); scope(exit) glfwTerminate();
+
+	construct(window, "Three.d", 1600, 900); scope(exit) destruct(window);
+	
+	try {
+		GLVersion glVersion = DerelictGL3.reload();
+		import std.conv : to;
+		writeln("Reloaded OpenGL Version: ", to!string(glVersion)); 
+	} catch(Exception e) {
+		writeln("Reloading OpenGl failed: " ~ e.msg);
+	}
+
+	//	static FT_Library _s_freeTypeLibrary
+	//	if(!FT_Init_FreeType(&_s_freeTypeLibrary)) throw new Exception("Initialising FreeType failed"); scope(exit) FT_Done_FreeType(_s_freeTypeLibrary);
+	if(TwInit(TW_OPENGL_CORE, null) == 0) throw new Exception("Initialising AntTweakBar failed"); scope(exit) TwTerminate();
+
+
+	construct(viewport); scope(exit) destruct(viewport);
+	construct(scene); scope(exit) destruct(scene);
+	construct(camera); scope(exit) destruct(camera);
+	construct(renderTarget, window.width, window.height); scope(exit) destruct(renderTarget);
+	construct(renderer, window.width, window.height); scope(exit) destruct(renderer);
+
+	//------------------------------------------------
+	// Create Scene
+	//------------------------------------------------
+	scene.mesh.loadModel("C:/Coding/models/Collada/duck.dae");
+	
+	
+	//------------------------------------------------
+	// Generate TweakBar
+	//------------------------------------------------
+	TwWindowSize(window.width, window.height);
+	auto tweakBar = TwNewBar("TweakBar");
+	
+	
+	//------------------------------------------------
+	// Connect Window callbacks
+	//------------------------------------------------
+	window.onKey = (ref Window rWindow, Key key, ScanCode scanCode, KeyAction action, KeyMod keyMod) {
+		if(window is window && action == KeyAction.Pressed) {
+			if(key == Key.Escape) {
+				keepRunning = false;
+			}
+		}
+	};
+	
+	window.onClose = (ref Window rWindow) {
+		keepRunning = false;
+	};
+	
+	window.onSize = (ref Window rWindow, int width, int height) {
+		TwWindowSize(width, height);		
+	};
+	
+	window.onPosition = (ref Window rWindow, int x, int y) {
+	};
+	
+	window.onButton = (ref Window rWindow , int button, ButtonAction action) {
+		TwMouseAction twaction = action == ButtonAction.Pressed ? TW_MOUSE_PRESSED : TW_MOUSE_RELEASED;
+		TwMouseButtonID twbutton;
+		
+		switch(button) {
+			default:
+			case GLFW_MOUSE_BUTTON_LEFT: twbutton = TW_MOUSE_LEFT; break;
+			case GLFW_MOUSE_BUTTON_RIGHT: twbutton = TW_MOUSE_RIGHT; break;
+			case GLFW_MOUSE_BUTTON_MIDDLE: twbutton = TW_MOUSE_MIDDLE; break;			
+		}
+		
+		TwMouseButton(twaction, twbutton);		
+	};
+	
+	window.onCursorPos = (ref Window rWindow, double x, double y) {
+		TwMouseMotion(cast(int)x, window.height - cast(int)y);
+	};
+	
+
+
+	//------------------------------------------------
+	// Main Loop
+	//------------------------------------------------
+	ulong frameCount = 0;
+	glfwSetTime(0);
+	while(keepRunning) {
+		window.pollEvents();
+		
+		window.makeAktiveRenderWindow();
+		
+		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glCheck!glClearDepth(1.0f);
+		glCheck!glClearColor(0, 0.3, 0, 1);
+				
+		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
+		
+		TwDraw();
+		
+		debug{ renderer.blitGBufferToScreen(); }
+		
+		window.swapBuffers();
+		
+		++frameCount;
+		if(frameCount % 1000 == 0) {
+			auto fps = cast(double)frameCount / glfwGetTime();
+			log("FPS: ", fps);
+			frameCount = 0;
+			glfwSetTime(0);
+		}
+	}
+}
+
+
+
+
+
+
+
+/+++++++
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct Slice(T) {
+	T* data;
+	size_t length;
+}
+
+
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct PersistentlyMappedBuffer(T) {
+	GLuint bo;
+	GLenum target;
+	Slice!T data;
+	alias Atom = T;
+}
+
+void create(T)(out PersistentlyMappedBuffer!T pmb, GLuint count, GLenum target, GLbitfield createFlags, GLbitfield mapFlags) {
+	pmb.target = target;
+	glCheck!glGenBuffers(1, &pmb.bo);
+	glCheck!glBindBuffer(target, pmb.bo);
+	glCheck!glBufferStorage(target, T.sizeof * count, null, createFlags);
+	pmb.data.data = cast(T*)glMapBufferRange(target, 0, T.sizeof * count, mapFlags);
+	pmb.data.length = count;
+	if (!pmb.data.data) {
+		throw new Exception("glMapBufferRange failed, probable bug.");
+	}
+}
+
+void destroy(T)(ref PersistentlyMappedBuffer!T pmb) {
+	glCheck!glBindBuffer(pmb.target, mName);
+	glCheck!glUnmapBuffer(pmb.target);
+	glCheck!glDeleteBuffers(1, &mName);
+
+	pmb = GlPersistentlyMappedBuffer!T.init;
+}
+
+
+//
+////======================================================================================================================
+//// 
+////======================================================================================================================
+//struct GlCircularBufferView(T) {
+//	GlPersistentlyMappedBuffer!T _buffer;
+//	GLsizeiptr _head;
+//}
+
+
+
+
+
+
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct DrawArraysIndirectCommand {
+	GLuint vertexCount;
+	GLuint instanceCount;
+	GLuint firstVertex;
+	GLuint baseInstance;
+}
+
+struct DrawElementsIndirectCommand {
+	GLuint count;
+	GLuint instanceCount;
+	GLuint firstIndex;
+	GLuint baseVertex;
+	GLuint baseInstance;
+}
+
+struct PerInstanceRenderData {
+}
+
+struct MeshDataRef {
+}
+
+struct PerInstanceDataRef {
+}
+
+struct Mesh {
+	size_t meshDataRef;
+	InstanceData[] instanceData;
+}
+
+struct MeshInstance {
+	size_t meshRef;
+	size_t meshInstanceRef;
+}
+
+struct Renderer {
+	MeshData[] meshData;
+	Mesh[] meshes;
+	MeshInstance[] meshInstances;
+
+
+
+
+
+
+	PersistentlyMappedBuffer!DrawElementsIndirectCommand commandBuffer;
+	PersistentlyMappedBuffer!TransformationMatrix perInstanceBuffer;
+
+	void renderOneFrame(Instances instances) {
+
+
+		auto instanceCount = 0;
+		// write draw commands
+		DrawElementsIndirectCommand* cmds = commandBuffer.reserve(instanceCount);
+		foreach(size_t i = 0; i < instanceCount; ++i) {
+			DrawElementsIndirectCommand* cmd = &cmds[u];
+			cmd->count = mIndexCount;
+			cmd->instanceCount = 1;
+			cmd->firstIndex = 0;
+			cmd->baseVertex = 0;
+			cmd->baseInstance = mUseShaderDrawParameters ? 0 : u;
+		}
+
+		// write per instance 
+		perInstanceBuffer.reserve(instances.length);
+		foreach() {
+		}
+
+		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, mCommands.GetHeadOffset(), xformCount, 0);
+	}
+}
+
+
+
+
+
+
+
+
+/++++
+
+
+
+
+
+
+
+
+
+
+struct GlPeristentBuffer {
+}
+
+
+
+
+
+
+
+struct GlRingBuffer {
+	GLuint bo;
+}
+
+struct ParamPerInstanceRingBuffer {
+	GLuint bo;
+}
+
+
+struct Renderer {
+	CommandRingBuffer commandRb;
+	ParamPerInstanceRingBuffer paramPerInstanceRb;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+struct MeshStorageManager(MeshLayout = DefaultVertexLayout) {
+	struct Slice {
+		size_t offset;
+		size_t length;
+	}
+
+	struct MeshStorage {
+		Slice vertexSlice;
+		Slice indexSlice;
+	}
+
+	GLuint vao;
+	GLuint vbo;
+	GLuint ibo;
+	MeshStorage[] meshes;
+}
+
+
+struct MeshInstance {
+}
+
+
+
+
+
+
+
+
+struct MappedPersistentBuffer {
+	GLuint vbo;
+	void* data;
+}
+
+void create(out MappedPersistentBuffer mpb, GLsizeiptr bufferSize) {
+	glCheck!glGenVertexArrays(1, &mpb.vbo);
+
+	GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+	GLbitfield createFlags = mapFlags | GL_MAP_DYNAMIC_STORAGE_BIT;
+
+	glCheck!glBindBuffer(GL_ARRAY_BUFFER, mpb.vbo);
+	glCheck!glBufferStorage(GL_ARRAY_BUFFER, bufferSize, null, createFlags);
+	mpb.data = glCheck!glMapBufferRange(GL_ARRAY_BUFFER, 0, bufferSize, mapFlags);
+}
+
+
+
+
+++++/
+
+
+
+
+
+
 //======================================================================================================================
 // 
 //======================================================================================================================
@@ -71,6 +459,27 @@ void main() {
 	camera.construct(); scope(exit) window.destruct();
 	renderTarget.construct(window.width, window.height); scope(exit) renderTarget.destruct();
 	renderer.construct(window.width, window.height); scope(exit) renderer.destruct();
+
+
+
+	//############################
+	//############################
+	//############################
+	//############################
+
+
+	GlPersistentlyMappedBuffer!DefaultVertexData vertexBuffer;
+
+	vertexBuffer.create(1024, GL_ARRAY_BUFFER, 0, 0);
+
+
+	//############################
+	//############################
+	//############################
+	//############################
+
+
+
 
 
 	//------------------------------------------------
@@ -140,6 +549,20 @@ void main() {
 		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glCheck!glClearDepth(1.0f);
 		glCheck!glClearColor(0, 0.3, 0, 1);
+
+		/*
+		foreach(renderTarget) //framebuffer
+		foreach(pass)
+		foreach(material) //shaders
+		foreach(materialInstance) //textures
+		foreach(vertexFormat) //vertex buffers
+		foreach(object) {
+							write uniform data;
+							glDrawElementsBaseVertex
+						}
+		*/		
+
+
 
 		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
 
@@ -544,3 +967,8 @@ void main() {
 
 
 +++/
+
+
+
+
++++++++/
