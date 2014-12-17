@@ -13,6 +13,9 @@ import std.exception : collectException;
 import std.experimental.logger;
 
 
+//======================================================================================================================
+// 
+//======================================================================================================================
 enum GlBufferTarget {
 	Array = GL_ARRAY_BUFFER, 
 	AtomicCounter = GL_ATOMIC_COUNTER_BUFFER, 
@@ -71,6 +74,11 @@ alias GlDispatchIndirectBuffer(T) = GlBuffer!(GlBufferTarget.DispatchIndirect, T
 alias GlTextureBuffer(T) = GlBuffer!(GlBufferTarget.Texture, T);
 alias GlUniformBuffer(T) = GlBuffer!(GlBufferTarget.Uniform, T);
 
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
 struct DrawElementsIndirectCommand {
 	GLuint count;
 	GLuint instanceCount;
@@ -89,6 +97,9 @@ struct DrawParameter {
 
 
 
+//======================================================================================================================
+// 
+//======================================================================================================================
 struct Renderer {
 	uint width;
 	uint height;
@@ -106,6 +117,15 @@ void construct(out Renderer renderer, uint width, uint height) {
 	renderer.indexBuffer.construct(1024, createFlags, mapFlags);
 	renderer.perInstanceParamBuffer.construct(1024, createFlags, mapFlags);
 	renderer.dispatchIndirectCommandBuffer.construct(1024, createFlags, mapFlags);
+
+	glCheck!glEnableVertexAttribArray(0);
+	glCheck!glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)0 );
+	glCheck!glEnableVertexAttribArray(1);
+	glCheck!glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)3 );
+	glCheck!glEnableVertexAttribArray(2);
+	glCheck!glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)6 );
+	glCheck!glEnableVertexAttribArray(3);
+	glCheck!glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)10 );
 }
 
 void destruct(ref Renderer renderer) {
