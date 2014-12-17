@@ -15,7 +15,6 @@
 		"derelict-gl3": ">=1.0.10",
 		"derelict-glfw3": ">=1.0.2",
 		"derelict-util": ">=1.0.3",
-		"logger": ">=0.3.2",
-		"toml-d": ">=0.3.0"
+		"logger": ">=0.3.2"
 	}
 }
