@@ -13,6 +13,15 @@ import std.exception : collectException;
 import std.experimental.logger;
 
 
+enum maxVertices = 1024;
+enum maxIndices = 1024;
+enum maxPerInstanceParams = 1024;
+enum maxIndirectCommands = 1024;
+enum bufferCount = 3; //tripple buffering
+enum kOneSecondInNanoSeconds = GLuint64(1000000000);
+
+
+
 //======================================================================================================================
 // 
 //======================================================================================================================
@@ -53,8 +62,8 @@ void construct(GlBufferTarget Target, T)(out GlBuffer!(Target, T) buffer, GLuint
 }
 
 void destruct(GlBufferTarget Target, T)(ref GlBuffer!(Target, T) buffer) {
-	glCheck!glBindBuffer(Target, buffer.handle);
 	glCheck!glUnmapBuffer(Target);
+	glCheck!glBindBuffer(Target, 0);
 	glCheck!glDeleteBuffers(1, &buffer.handle);
 	buffer = buffer.init;
 }
@@ -103,6 +112,7 @@ struct DrawParameter {
 struct Renderer {
 	uint width;
 	uint height;
+	GLsync sync;
 	GlArrayBuffer!VertexData vertexBuffer; // vertex data for all meshes
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
 	GlShaderStorageBuffer!DrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
@@ -113,10 +123,10 @@ void construct(out Renderer renderer, uint width, uint height) {
 	GLbitfield createFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;//TODO: ?? | GL_MAP_DYNAMIC_STORAGE_BIT;
 	GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 	
-	renderer.vertexBuffer.construct(1024, createFlags, mapFlags);
-	renderer.indexBuffer.construct(1024, createFlags, mapFlags);
-	renderer.perInstanceParamBuffer.construct(1024, createFlags, mapFlags);
-	renderer.dispatchIndirectCommandBuffer.construct(1024, createFlags, mapFlags);
+	renderer.vertexBuffer.construct(bufferCount * maxVertices, createFlags, mapFlags);
+	renderer.indexBuffer.construct(bufferCount * maxIndices, createFlags, mapFlags);
+	renderer.perInstanceParamBuffer.construct(bufferCount * maxPerInstanceParams, createFlags, mapFlags);
+	renderer.dispatchIndirectCommandBuffer.construct(bufferCount * maxIndirectCommands, createFlags, mapFlags);
 
 	glCheck!glEnableVertexAttribArray(0);
 	glCheck!glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)0 );
@@ -136,7 +146,117 @@ void destruct(ref Renderer renderer) {
 	renderer = renderer.init;
 }
 
+
+
+
+struct BufferLockManager(bool UseBusyCpu) {
+	struct BufferRange
+	{
+		size_t startOffset;
+		size_t length;
+
+		bool overlaps(BufferRange rhs) const {
+			return startOffset < (rhs.startOffset + rhs.length) && rhs.startOffset < (startOffset + length);
+		}
+	}
+	
+	struct BufferLock
+	{
+		BufferRange range;
+		GLsync syncObj;
+	}
+
+	BufferLock[] bufferLocks;
+}
+
+void waitForLockedRange(bool UseBusyCpu)(ref BufferLockManager!UseBusyCpu bufferLockManager, size_t lockBeginOffset, size_t lockLength) { 
+	BufferRange testRange = BufferRange(lockBeginOffset, lockLength);
+	BufferLock[] swapLocks;
+
+	foreach(ref bl; bufferLockManager.bufferLocks) {
+		if (testRange.overlaps(bl.range)) {
+			static if(UseBusyCpu) {
+				GLbitfield waitFlags = 0;
+				GLuint64 waitDuration = 0;
+				while(true) {
+					GLenum waitRet = glCheck!glClientWaitSync(syncObj, waitFlags, waitDuration);
+					if (waitRet == GL_ALREADY_SIGNALED || waitRet == GL_CONDITION_SATISFIED) {
+						return;
+					}
+					
+					if (waitRet == GL_WAIT_FAILED) {
+						assert(!"Not sure what to do here. Probably raise an exception or something.");
+						return;
+					}
+					
+					// After the first time, need to start flushing, and wait for a looong time.
+					waitFlags = GL_SYNC_FLUSH_COMMANDS_BIT;
+					waitDuration = kOneSecondInNanoSeconds;
+				}
+			} 
+			else {
+				glCheck!glWaitSync(syncObj, 0, GL_TIMEOUT_IGNORED);
+			}
+
+			glCheck!glDeleteSync(bl.syncObj);
+		} 
+		else {
+			swapLocks ~= bl;
+		}
+	}
+
+	import std.algorithm : swap;
+	swap(bufferLockManager.bufferLocks, swapLocks);
+}
+
+void lockRange(bool UseBusyCpu)(ref BufferLockManager!UseBusyCpu bufferLockManager, size_t lockBeginOffset, size_t lockLength) {
+	BufferRange newRange = BufferRange(lockBeginOffset, lockLength);
+	GLsync syncName = glCheck!glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	BufferLock newLock = BufferLock(newRange, syncName);	
+	bufferLockManager.bufferLocks ~= newLock;
+}
+
+
+//void lockBuffer(ref Renderer renderer) {
+//	if(renderer.sync) {
+//		glDeleteSync(renderer.sync);	
+//	}
+//	renderer.sync = glCheck!glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+//}
+//
+//void waitBuffer(ref Renderer renderer) {
+//	if(renderer.sync) {
+//		while(true) {
+//			GLenum waitReturn = glClientWaitSync(renderer.sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+//			if (waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED) {
+//				return;
+//			}
+//		}
+//	}
+//}
+
 void uploadModelData(ref Renderer renderer, ModelData modelData) {
+	//TODO: wait for buffer range
+	//mBufferLockManager.WaitForLockedRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
+	
+	renderer.vertexBuffer.bind();
+	renderer.indexBuffer.bind();
+	// we need to store all models in one giant vbo to use glMultiDrawElementsIndirect. 
+	// TODO: implement triple buffering. -> use vertexBuffer and indexBuffer as giant ring buffers
+	GLuint vertexBufferOffset = 0;
+	GLuint indexBufferOffset = 0;
+
+	foreach(meshData; modelData.meshData) {
+		import std.c.string: memcpy;
+		//upload vertex data
+		assert(renderer.vertexBuffer.length >= meshData.vertexData.length);
+		memcpy(renderer.vertexBuffer.data + vertexBufferOffset, meshData.vertexData.ptr, meshData.vertexData.length * VertexData.sizeof);
+		vertexBufferOffset += meshData.vertexData.length * VertexData.sizeof;
+		//upload index data
+		assert(renderer.indexBuffer.length >= meshData.indexData.length);
+		memcpy(renderer.indexBuffer.data + indexBufferOffset, meshData.indexData.ptr, meshData.indexData.length * IndexData.sizeof);
+		indexBufferOffset += meshData.indexData.length * IndexData.sizeof;
+	}
 }
 
 void renderOneFrame(ref Renderer renderer, ref Scene scene, ref Camera camera, ref RenderTarget renderTarget, ref Viewport viewport) {
@@ -157,7 +277,7 @@ void renderOneFrame(ref Renderer renderer, ref Scene scene, ref Camera camera, r
 
 	glCheck!glViewport(0, 0, renderer.width, renderer.height);
 	
-	//enable depth mask _before_ glClear ing the depth buffer!
+	// enable depth mask _before_ glClear ing the depth buffer!
 	glCheck!glDepthMask(GL_TRUE); scope(exit) glCheck!glDepthMask(GL_FALSE);
 	glCheck!glEnable(GL_DEPTH_TEST); scope(exit) glCheck!glDisable(GL_DEPTH_TEST);
 	glCheck!glDepthFunc(GL_LEQUAL);
@@ -166,7 +286,7 @@ void renderOneFrame(ref Renderer renderer, ref Scene scene, ref Camera camera, r
 	
 	// write draw commmands
 	
-	//draw //TODO: pass offset (cast to ptr) into command buffer instead of null
+	// draw //TODO: pass offset (cast to ptr) into command buffer instead of null
 
 
 	renderer.vertexBuffer.bind();
@@ -176,7 +296,7 @@ void renderOneFrame(ref Renderer renderer, ref Scene scene, ref Camera camera, r
 
 	glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(renderer.indexBuffer.ValueType), null, meshCount, 0);
 
-
+	//TODO: lock buffer range
 }
 
 debug {
