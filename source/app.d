@@ -133,10 +133,10 @@ void main() {
 		glCheck!glClearColor(0, 0.3, 0, 1);
 				
 		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
-		
-		TwDraw();
-		
+
 		debug{ renderer.blitGBufferToScreen(); }
+
+		TwDraw();
 		
 		window.swapBuffers();
 		
