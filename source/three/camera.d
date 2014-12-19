@@ -3,11 +3,9 @@
 import three.common;
 
 struct Camera {
-}
-
-void construct(out Camera camera) pure @safe nothrow @nogc {
-}
-
-void destruct(ref Camera camera) pure @safe nothrow @nogc {
-	camera = Camera.init;
+	void construct() pure @safe nothrow @nogc {
+	}
+	
+	void destruct() pure @safe nothrow @nogc {
+	}
 }

@@ -43,7 +43,7 @@ void main() {
 	DerelictAntTweakBar.load();
 	if(!glfwInit()) throw new Exception("Initialising GLFW failed"); scope(exit) glfwTerminate();
 
-	construct(window, "Three.d", 1600, 900); scope(exit) destruct(window);
+	window.construct("Three.d", 1600, 900); scope(exit) window.destruct();
 	
 	try {
 		GLVersion glVersion = DerelictGL3.reload();
@@ -58,18 +58,16 @@ void main() {
 	if(TwInit(TW_OPENGL_CORE, null) == 0) throw new Exception("Initialising AntTweakBar failed"); scope(exit) TwTerminate();
 
 
-	construct(viewport); scope(exit) destruct(viewport);
-	construct(scene); scope(exit) destruct(scene);
-	construct(camera); scope(exit) destruct(camera);
-	construct(renderTarget, window.width, window.height); scope(exit) destruct(renderTarget);
-	construct(renderer, window.width, window.height); scope(exit) destruct(renderer);
+	viewport.construct(); scope(exit) viewport.destruct();
+	scene.construct(); scope(exit) scene.destruct();
+	camera.construct(); scope(exit) camera.destruct();
+	renderTarget.construct(window.width, window.height); scope(exit) renderTarget.destruct();
+	renderer.construct(window.width, window.height); scope(exit) renderer.destruct();
 
 	//------------------------------------------------
 	// Create Scene
 	//------------------------------------------------
-	ModelData modelData;
-	loadModelData(modelData, "C:/Coding/models/Collada/duck.dae");
-	renderer.uploadModelData(modelData);
+	ModelData modelData = loadModelData("C:/Coding/models/Collada/duck.dae");
 	
 	//------------------------------------------------
 	// Generate TweakBar

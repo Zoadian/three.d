@@ -9,6 +9,108 @@ private:
 	KeyAction[int] _keyStates;
 	ButtonAction[int] _buttonStates;
 
+public:
+	void construct(string title, uint width, uint height) nothrow {
+		this._x = 0;
+		this._y = 0;
+		this._width = width;
+		this._height = height;
+		
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+
+		glfwDefaultWindowHints();
+		glfwWindowHint(GLFW_RED_BITS, 8);
+		glfwWindowHint(GLFW_GREEN_BITS, 8);
+		glfwWindowHint(GLFW_BLUE_BITS, 8);
+		glfwWindowHint(GLFW_ALPHA_BITS, 0);
+		glfwWindowHint(GLFW_DEPTH_BITS, 24);
+		glfwWindowHint(GLFW_STENCIL_BITS, 8);
+		import std.string : toStringz;
+		this._glfwWindow = glfwCreateWindow(width, height, title.toStringz(), null, null);
+		assert(this._glfwWindow !is null);
+		
+		glfwSetWindowUserPointer(this._glfwWindow, cast(void*)&this);
+		glfwSetWindowPosCallback(this._glfwWindow, cast(GLFWwindowposfun)&_GLFWwindowposfun);
+		glfwSetWindowSizeCallback(this._glfwWindow, cast(GLFWwindowsizefun)&_GLFWwindowsizefun);
+		glfwSetWindowCloseCallback(this._glfwWindow, cast(GLFWwindowclosefun)&_GLFWwindowclosefun);
+		glfwSetWindowRefreshCallback(this._glfwWindow, cast(GLFWwindowrefreshfun)&_GLFWwindowrefreshfun);
+		glfwSetWindowIconifyCallback(this._glfwWindow, cast(GLFWwindowiconifyfun)&_GLFWwindowiconifyfun);
+		glfwSetMouseButtonCallback(this._glfwWindow, cast(GLFWmousebuttonfun)&_GLFWmousebuttonfun);
+		glfwSetCursorPosCallback(this._glfwWindow, cast(GLFWcursorposfun)&_GLFWcursorposfun);
+		//glfwSetCursorEnterCallback(this._glfwWindow, cast(GLFWcursorenterfunfun)&_GLFWcursorenterfunfun);
+		glfwSetScrollCallback(this._glfwWindow, cast(GLFWscrollfun)&_GLFWscrollfun);
+		glfwSetKeyCallback(this._glfwWindow, cast(GLFWkeyfun)&_GLFWkeyfun);
+		glfwSetCharCallback(this._glfwWindow, cast(GLFWcharfun)&_GLFWcharfun);
+		
+		glfwMakeContextCurrent(this._glfwWindow);
+	}
+	
+	void destruct() {
+		//	glfwSetWindowPosCallback(this._glfwWindow, null);
+		//	glfwSetWindowSizeCallback(this._glfwWindow, null);
+		//	glfwSetWindowCloseCallback(this._glfwWindow, null);
+		//	glfwSetWindowRefreshCallback(this._glfwWindow, null);
+		//	glfwSetWindowIconifyCallback(this._glfwWindow, null);
+		//	glfwSetMouseButtonCallback(this._glfwWindow, null);
+		//	glfwSetCursorPosCallback(this._glfwWindow, null);
+		//	//glfwSetCursorEnterCallback(this._glfwWindow, null);
+		//	glfwSetScrollCallback(this._glfwWindow, null);
+		//	glfwSetKeyCallback(this._glfwWindow, null);
+		//	glfwSetCharCallback(this._glfwWindow, null);
+		
+		glfwDestroyWindow(this._glfwWindow);
+	}
+	
+	void makeAktiveRenderWindow() nothrow @nogc {
+		glfwMakeContextCurrent(this._glfwWindow);
+	}
+	
+	void swapBuffers() nothrow @nogc {
+		glfwSwapBuffers(this._glfwWindow);
+	}
+	
+	void pollEvents() nothrow @nogc {
+		glfwPollEvents();
+	}
+	
+	@property void setTitle(string title) nothrow {
+		import std.string : toStringz;
+		glfwSetWindowTitle(this._glfwWindow, title.toStringz());
+	}
+	
+	KeyAction keyState(int key) pure @safe nothrow {
+		try {
+			return this._keyStates.get(key, KeyAction.Released);
+		}
+		catch(Exception) {
+			return KeyAction.Released;
+		}
+	}
+	
+	ButtonAction buttonState(int button) pure @safe nothrow {
+		try {
+			return this._buttonStates.get(button, ButtonAction.Released);
+		}
+		catch(Exception) {
+			return ButtonAction.Released;
+		}
+	}
+	
+	uint x() {
+		return this._x;
+	}
+	uint y() {
+		return this._y;
+	}
+	uint width() {
+		return this._width;
+	}
+	uint height() {
+		return this._height;
+	}
+
 public:							
 	void delegate(ref Window, int, int) onPosition;	 
 	void delegate(ref Window, int, int) onSize;	 
@@ -183,108 +285,6 @@ enum Key {
 	Menu = 348
 }
 
-void construct(out Window window, string title, uint width, uint height) nothrow {
-	window._x = 0;
-	window._y = 0;
-	window._width = width;
-	window._height = height;
-	
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-
-	glfwDefaultWindowHints();
-	glfwWindowHint(GLFW_RED_BITS, 8);
-	glfwWindowHint(GLFW_GREEN_BITS, 8);
-	glfwWindowHint(GLFW_BLUE_BITS, 8);
-	glfwWindowHint(GLFW_ALPHA_BITS, 0);
-	glfwWindowHint(GLFW_DEPTH_BITS, 24);
-	glfwWindowHint(GLFW_STENCIL_BITS, 8);
-	import std.string : toStringz;
-	window._glfwWindow = glfwCreateWindow(width, height, title.toStringz(), null, null);
-	assert(window._glfwWindow !is null);
-	
-		glfwSetWindowUserPointer(window._glfwWindow, cast(void*)&window);
-		glfwSetWindowPosCallback(window._glfwWindow, cast(GLFWwindowposfun)&_GLFWwindowposfun);
-		glfwSetWindowSizeCallback(window._glfwWindow, cast(GLFWwindowsizefun)&_GLFWwindowsizefun);
-		glfwSetWindowCloseCallback(window._glfwWindow, cast(GLFWwindowclosefun)&_GLFWwindowclosefun);
-		glfwSetWindowRefreshCallback(window._glfwWindow, cast(GLFWwindowrefreshfun)&_GLFWwindowrefreshfun);
-		glfwSetWindowIconifyCallback(window._glfwWindow, cast(GLFWwindowiconifyfun)&_GLFWwindowiconifyfun);
-		glfwSetMouseButtonCallback(window._glfwWindow, cast(GLFWmousebuttonfun)&_GLFWmousebuttonfun);
-		glfwSetCursorPosCallback(window._glfwWindow, cast(GLFWcursorposfun)&_GLFWcursorposfun);
-		//glfwSetCursorEnterCallback(window._glfwWindow, cast(GLFWcursorenterfunfun)&_GLFWcursorenterfunfun);
-		glfwSetScrollCallback(window._glfwWindow, cast(GLFWscrollfun)&_GLFWscrollfun);
-		glfwSetKeyCallback(window._glfwWindow, cast(GLFWkeyfun)&_GLFWkeyfun);
-		glfwSetCharCallback(window._glfwWindow, cast(GLFWcharfun)&_GLFWcharfun);
-	
-	glfwMakeContextCurrent(window._glfwWindow);
-}
-
-void destruct(ref Window window) {
-//	glfwSetWindowPosCallback(window._glfwWindow, null);
-//	glfwSetWindowSizeCallback(window._glfwWindow, null);
-//	glfwSetWindowCloseCallback(window._glfwWindow, null);
-//	glfwSetWindowRefreshCallback(window._glfwWindow, null);
-//	glfwSetWindowIconifyCallback(window._glfwWindow, null);
-//	glfwSetMouseButtonCallback(window._glfwWindow, null);
-//	glfwSetCursorPosCallback(window._glfwWindow, null);
-//	//glfwSetCursorEnterCallback(this._glfwWindow, null);
-//	glfwSetScrollCallback(window._glfwWindow, null);
-//	glfwSetKeyCallback(window._glfwWindow, null);
-//	glfwSetCharCallback(window._glfwWindow, null);
-	
-	glfwDestroyWindow(window._glfwWindow);
-	
-	window = Window.init;
-}
-
-void makeAktiveRenderWindow(ref Window window) nothrow @nogc {
-	glfwMakeContextCurrent(window._glfwWindow);
-}
-
-void swapBuffers(ref Window window) nothrow @nogc {
-	glfwSwapBuffers(window._glfwWindow);
-}
-
-void pollEvents(ref Window window) nothrow @nogc {
-	glfwPollEvents();
-}
-
-@property void setTitle(ref Window window, string title) nothrow {
-	import std.string : toStringz;
-	glfwSetWindowTitle(window._glfwWindow, title.toStringz());
-}
-
-KeyAction keyState(ref Window window, int key) pure @safe nothrow {
-	try {
-		return window._keyStates.get(key, KeyAction.Released);
-	}
-	catch(Exception) {
-		return KeyAction.Released;
-	}
-}
-
-ButtonAction buttonState(ref Window window, int button) pure @safe nothrow {
-	try {
-		return window._buttonStates.get(button, ButtonAction.Released);
-	}
-	catch(Exception) {
-		return ButtonAction.Released;
-	}
-}
-
-uint x(ref Window window) {
-	return window._x;
-}
-uint y(ref Window window) {
-	return window._y;
-}
-uint width(ref Window window) {
-	return window._width;
-}
-uint height(ref Window window) {
-	return window._height;
-}
 
 
 

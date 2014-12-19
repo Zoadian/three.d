@@ -4,11 +4,9 @@ import three.common;
 import three.mesh;
 
 struct Scene {
-}
-
-void construct(out Scene scene) pure @safe nothrow @nogc {
-}
-
-void destruct(ref Scene scene) pure @safe nothrow @nogc {
-	scene = Scene.init;
+	void construct() pure @safe nothrow @nogc {
+	}
+	
+	void destruct() pure @safe nothrow @nogc {
+	}
 }

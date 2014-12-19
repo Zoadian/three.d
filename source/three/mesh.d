@@ -42,11 +42,12 @@ struct ModelData {
 	MeshData[] meshData;
 }
 
-void loadModelData(out ModelData modelData, string filePath) {
+ModelData loadModelData(string filePath) {
 	import std.traits;
 	import std.string : toStringz;
 	auto scene = aiImportFile(filePath.toStringz(),	aiProcess_Triangulate); scope(exit) aiReleaseImport(scene);
 
+	ModelData modelData;
 	modelData.meshData.length = scene.mNumMeshes;
 
 	for(uint m = 0; m < scene.mNumMeshes; ++m) {	
@@ -89,6 +90,6 @@ void loadModelData(out ModelData modelData, string filePath) {
 				modelData.meshData[m].indexData[curIndexDataIdx++] = meshData.mFaces[f].mIndices[i];		
 			}
 		}
-
 	}
+	return modelData;
 }
