@@ -26,6 +26,10 @@ enum kOneSecondInNanoSeconds = GLuint64(1000000000);
 
 
 
+
+//======================================================================================================================
+// 
+//======================================================================================================================
 struct GBuffer {
 	uint width;
 	uint height;
@@ -80,11 +84,119 @@ struct GBuffer {
 }
 
 
+
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+
+struct ShaderPipeline {
+	GLuint pipeline;
+	GLuint vertexShaderGeometryPass;
+	GLuint fragmentShaderGeometryPass;
+
+	void construct(string vertexShaderSource, string fragmentShaderSource) nothrow {
+		glCheck!glGenProgramPipelines(1, &this.pipeline); 
+		
+		auto szVertexSource = [vertexShaderSource.toStringz()];
+		this.vertexShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_VERTEX_SHADER, 1, szVertexSource.ptr);
+		int len;
+		glCheck!glGetProgramiv(this.vertexShaderGeometryPass, GL_INFO_LOG_LENGTH , &len);
+		if (len > 1) {
+			char[] msg = new char[len];
+			glCheck!glGetProgramInfoLog(this.vertexShaderGeometryPass, len, null, cast(char*) msg);
+			log(cast(string)msg).collectException;
+		}
+		
+		auto szFragmentSource = [fragmentShaderSource.toStringz()];
+		this.fragmentShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, szFragmentSource.ptr);
+		//	int len;
+		glCheck!glGetProgramiv(this.fragmentShaderGeometryPass, GL_INFO_LOG_LENGTH , &len);
+		if (len > 1) {
+			char[] msg = new char[len];
+			glCheck!glGetProgramInfoLog(this.fragmentShaderGeometryPass, len, null, cast(char*) msg);
+			log(cast(string)msg).collectException;
+		}
+		
+		glCheck!glUseProgramStages(this.pipeline, GL_VERTEX_SHADER_BIT, this.vertexShaderGeometryPass);
+		glCheck!glUseProgramStages(this.pipeline, GL_FRAGMENT_SHADER_BIT, this.fragmentShaderGeometryPass);
+		
+		glCheck!glValidateProgramPipeline(this.pipeline);
+		GLint status;
+		glCheck!glGetProgramPipelineiv(this.pipeline, GL_VALIDATE_STATUS, &status);
+		//TODO: add error handling
+		assert(status != 0);
+	}
+
+	void destruct() nothrow {
+		glDeleteProgramPipelines(1, &this.pipeline);
+	}
+}
+
+
+
+enum vertexShaderSource = "
+	#version 420 core
+
+	layout(location = 0) in vec3 in_position;
+	layout(location = 1) in vec3 in_normal;
+	layout(location = 2) in vec2 in_texcoord;
+	layout(location = 3) in vec4 in_color;
+
+	//==============
+	out vec2 _normal;
+	out vec2 _texture;
+	out vec3 _color;
+	//==============
+
+	out gl_PerVertex 
+	{
+    	vec4 gl_Position;
+ 	};
+
+	vec2 encode(vec3 n)
+	{
+	    float f = sqrt(8*n.z+8);
+	    return n.xy / f + 0.5;
+	}
+	
+	void main() 
+	{        				
+		gl_Position = vec4(0.005 * in_position.x, 0.005 * in_position.y, 0.005* in_position.z, 1.0);
+		_normal = encode(in_normal);
+		_texture = in_texcoord;
+		_color = in_color.xyz;
+	};
+";
+
+enum fragmentShaderSource = "
+	#version 420 core
+
+	//==============
+	in vec2 _normal;
+	in vec2 _texture;
+	in vec3 _color;
+	//==============
+
+	layout(location = 0) out float depth;
+	layout(location = 1) out vec4 normal;
+	layout(location = 2) out vec4 color;
+
+	void main()
+	{
+		depth = gl_FragCoord.z;
+		normal.xy = _normal.xy;
+		color.xyz = _color;
+	}
+";
+
+
 //======================================================================================================================
 // 
 //======================================================================================================================
 struct Renderer {
 	GBuffer gbuffer;
+	ShaderPipeline shaderPipeline;
 	GlArrayBuffer!VertexData vertexBuffer; // vertex data for all meshes
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
 	GlShaderStorageBuffer!GlDrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
@@ -96,6 +208,7 @@ struct Renderer {
 		GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 
 		this.gbuffer.construct(width, height);
+		this.shaderPipeline.construct(vertexShaderSource, fragmentShaderSource);
 		this.vertexBuffer.construct(bufferCount * maxVertices, createFlags, mapFlags);
 		this.indexBuffer.construct(bufferCount * maxIndices, createFlags, mapFlags);
 		this.perInstanceParamBuffer.construct(bufferCount * maxPerInstanceParams, createFlags, mapFlags);
@@ -118,6 +231,7 @@ struct Renderer {
 		this.perInstanceParamBuffer.destruct();
 		this.indexBuffer.destruct();
 		this.vertexBuffer.destruct();
+		this.shaderPipeline.destruct();
 		this.gbuffer.destruct();
 	}
 
