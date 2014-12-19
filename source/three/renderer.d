@@ -26,12 +26,65 @@ enum kOneSecondInNanoSeconds = GLuint64(1000000000);
 
 
 
+struct GBuffer {
+	uint width;
+	uint height;
+	GLuint texturePosition;
+	GLuint textureNormal;
+	GLuint textureColor;
+	GLuint textureDepthStencil;
+	GLuint fbo;
+
+	void construct(uint width, uint height) nothrow {
+		this.width = width;
+		this.height = height;
+		glCheck!glGenTextures(1, &this.texturePosition);
+		glCheck!glBindTexture(GL_TEXTURE_2D, this.texturePosition);
+		glCheck!glTexStorage2D(GL_TEXTURE_2D, 1, GL_R32F, width, height);
+		glCheck!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_FLOAT, null);	
+		glCheck!glBindTexture(GL_TEXTURE_2D, 0);
+
+		glCheck!glGenTextures(1, &this.textureNormal);	
+		glCheck!glBindTexture(GL_TEXTURE_2D, this.textureNormal);
+		glCheck!glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB10_A2, width, height);
+		glCheck!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, null);
+		glCheck!glBindTexture(GL_TEXTURE_2D, 0);
+
+		glCheck!glGenTextures(1, &this.textureColor);	
+		glCheck!glBindTexture(GL_TEXTURE_2D, this.textureColor);
+		glCheck!glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+		glCheck!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, null);	
+		glCheck!glBindTexture(GL_TEXTURE_2D, 0);
+
+		glCheck!glGenTextures(1, &this.textureDepthStencil);	
+		glCheck!glBindTexture(GL_TEXTURE_2D, this.textureDepthStencil);
+		glCheck!glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, width, height);
+		glCheck!glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, null);
+		glCheck!glBindTexture(GL_TEXTURE_2D, 0);	
+
+		glCheck!glGenFramebuffers(1, &this.fbo);
+		glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this.fbo);
+		glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 0, GL_TEXTURE_2D, this.texturePosition, 0);
+		glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 1, GL_TEXTURE_2D, this.textureNormal, 0);
+		glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + 2, GL_TEXTURE_2D, this.textureColor, 0);
+		glCheck!glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, this.textureDepthStencil, 0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	}
+	
+	void destruct() nothrow {
+		glCheck!glDeleteFramebuffers(1, &this.fbo);
+		glCheck!glDeleteTextures(1, &this.textureColor);
+		glCheck!glDeleteTextures(1, &this.textureNormal);
+		glCheck!glDeleteTextures(1, &this.texturePosition);
+	}
+}
+
+
 //======================================================================================================================
 // 
 //======================================================================================================================
 struct Renderer {
-	uint width;
-	uint height;
+	GBuffer gbuffer;
 	GlArrayBuffer!VertexData vertexBuffer; // vertex data for all meshes
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
 	GlShaderStorageBuffer!GlDrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
@@ -41,7 +94,8 @@ struct Renderer {
 	void construct(uint width, uint height) {
 		GLbitfield createFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;//TODO: ?? | GL_MAP_DYNAMIC_STORAGE_BIT;
 		GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-		
+
+		this.gbuffer.construct(width, height);
 		this.vertexBuffer.construct(bufferCount * maxVertices, createFlags, mapFlags);
 		this.indexBuffer.construct(bufferCount * maxIndices, createFlags, mapFlags);
 		this.perInstanceParamBuffer.construct(bufferCount * maxPerInstanceParams, createFlags, mapFlags);
@@ -64,6 +118,7 @@ struct Renderer {
 		this.perInstanceParamBuffer.destruct();
 		this.indexBuffer.destruct();
 		this.vertexBuffer.destruct();
+		this.gbuffer.destruct();
 	}
 
 //	void uploadModelData(GlArrayBuffer!VertexData vertexBuffer, GlElementArrayBuffer!IndexData indexBuffer, ModelData modelData) {
@@ -110,7 +165,7 @@ struct Renderer {
 		
 		GLsizei meshCount = 0;
 		
-		glCheck!glViewport(0, 0, this.width, this.height);
+		glCheck!glViewport(0, 0, this.gbuffer.width, this.gbuffer.height);
 		
 		// enable depth mask _before_ glClear ing the depth buffer!
 		glCheck!glDepthMask(GL_TRUE); scope(exit) glCheck!glDepthMask(GL_FALSE);
