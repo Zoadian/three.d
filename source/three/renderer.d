@@ -15,6 +15,7 @@ import std.experimental.logger;
 import three.gl.buffer;
 import three.gl.draw;
 import three.gl.sync;
+import three.gl.util;
 
 enum maxVertices = 1024;
 enum maxIndices = 1024;
@@ -31,11 +32,11 @@ enum kOneSecondInNanoSeconds = GLuint64(1000000000);
 struct Renderer {
 	uint width;
 	uint height;
-	GlSyncManager syncManager;
 	GlArrayBuffer!VertexData vertexBuffer; // vertex data for all meshes
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
 	GlShaderStorageBuffer!GlDrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
 	GlDispatchIndirectBuffer!GlDrawElementsIndirectCommand dispatchIndirectCommandBuffer; // is filled with DrawElementsIndirectCommand for each mesh each frame. shall be accessed as a ringbuffer
+	GlSyncManager syncManager;
 
 	void construct(uint width, uint height) {
 		GLbitfield createFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;//TODO: ?? | GL_MAP_DYNAMIC_STORAGE_BIT;
@@ -45,6 +46,7 @@ struct Renderer {
 		this.indexBuffer.construct(bufferCount * maxIndices, createFlags, mapFlags);
 		this.perInstanceParamBuffer.construct(bufferCount * maxPerInstanceParams, createFlags, mapFlags);
 		this.dispatchIndirectCommandBuffer.construct(bufferCount * maxIndirectCommands, createFlags, mapFlags);
+		this.syncManager.construct();
 
 		glCheck!glEnableVertexAttribArray(0);
 		glCheck!glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)0 );
@@ -57,40 +59,41 @@ struct Renderer {
 	}
 
 	void destruct() {
-		this.vertexBuffer.destruct();
-		this.indexBuffer.destruct();
-		this.perInstanceParamBuffer.destruct();
+		this.syncManager.destruct();
 		this.dispatchIndirectCommandBuffer.destruct();
+		this.perInstanceParamBuffer.destruct();
+		this.indexBuffer.destruct();
+		this.vertexBuffer.destruct();
 	}
 
-	void uploadModelData(GlArrayBuffer!VertexData vertexBuffer, GlElementArrayBuffer!IndexData indexBuffer, ModelData modelData) {
-		//TODO: wait for buffer range
-		//mBufferLockManager.WaitForLockedRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
-
-		// TODO: check if buffers are bound. they should always be bound here!
-
-		// we need to store all models in one giant vbo to use glMultiDrawElementsIndirect. 
-		// TODO: implement triple buffering. -> use vertexBuffer and indexBuffer as giant ring buffers
-		GLuint vertexBufferOffset = 0;
-		GLuint indexBufferOffset = 0;
-		
-		foreach(meshData; modelData.meshData) {
-			import std.c.string: memcpy;
-			//upload vertex data
-			assert(this.vertexBuffer.length >= meshData.vertexData.length);
-			memcpy(this.vertexBuffer.data + vertexBufferOffset, meshData.vertexData.ptr, meshData.vertexData.length * VertexData.sizeof);
-			vertexBufferOffset += meshData.vertexData.length * VertexData.sizeof;
-			//upload index data
-			assert(this.indexBuffer.length >= meshData.indexData.length);
-			memcpy(this.indexBuffer.data + indexBufferOffset, meshData.indexData.ptr, meshData.indexData.length * IndexData.sizeof);
-			indexBufferOffset += meshData.indexData.length * IndexData.sizeof;
-		}
-	}
+//	void uploadModelData(GlArrayBuffer!VertexData vertexBuffer, GlElementArrayBuffer!IndexData indexBuffer, ModelData modelData) {
+//		//TODO: wait for buffer range
+//		//mBufferLockManager.WaitForLockedRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
+//
+//		// TODO: check if buffers are bound. they should always be bound here!
+//
+//		// we need to store all models in one giant vbo to use glMultiDrawElementsIndirect. 
+//		// TODO: implement triple buffering. -> use vertexBuffer and indexBuffer as giant ring buffers
+//		GLuint vertexBufferOffset = 0;
+//		GLuint indexBufferOffset = 0;
+//		
+//		foreach(meshData; modelData.meshData) {
+//			import std.c.string: memcpy;
+//			//upload vertex data
+//			assert(this.vertexBuffer.length >= meshData.vertexData.length);
+//			memcpy(this.vertexBuffer.data + vertexBufferOffset, meshData.vertexData.ptr, meshData.vertexData.length * VertexData.sizeof);
+//			vertexBufferOffset += meshData.vertexData.length * VertexData.sizeof;
+//			//upload index data
+//			assert(this.indexBuffer.length >= meshData.indexData.length);
+//			memcpy(this.indexBuffer.data + indexBufferOffset, meshData.indexData.ptr, meshData.indexData.length * IndexData.sizeof);
+//			indexBufferOffset += meshData.indexData.length * IndexData.sizeof;
+//		}
+//	}
 
 	void renderOneFrame(ref Scene scene, ref Camera camera, ref RenderTarget renderTarget, ref Viewport viewport) {
 
 		// wait until GPU has finished rendereing from our desired buffer destination
-		//TODO: syncManager.WaitForLockedRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
+		//TODO: this.syncManager.WaitForLockedRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
 
 
 		/*
@@ -128,7 +131,7 @@ struct Renderer {
 		
 		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), null, meshCount, 0);
 
-		//TODO: syncManager.LockRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
+		//TODO: this.syncManager.LockRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
 	}
 	
 	debug {

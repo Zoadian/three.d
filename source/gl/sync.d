@@ -1,9 +1,11 @@
 ﻿module three.gl.sync;
 
-import three.common;
+public import derelict.opengl3.gl3;
+import three.gl.util;
 
 
 struct GlSyncManager {
+private:
 	struct LockRange
 	{
 		size_t startOffset;
@@ -21,6 +23,13 @@ struct GlSyncManager {
 	}
 	
 	Lock[] locks;
+
+public:
+	void construct() pure @safe nothrow @nogc {
+	}
+	
+	void destruct() pure @safe nothrow @nogc {
+	}
 	
 	void waitForLockedRange(size_t lockBeginOffset, size_t lockLength) { 
 		LockRange testRange = LockRange(lockBeginOffset, lockLength);

@@ -2,36 +2,9 @@
 
 import three.common;
 
+import three.gl.draw;
 
 
-struct Position {
-	float x, y, z;
-}
-
-struct Normal {
-	float x, y, z;
-}
-
-struct Color {
-	float r, g, b, a;
-}
-
-struct TextureCoordinate {
-	float u, v;
-}
-
-struct Matrix4 {
-	float[4*4] data;
-}
-
-struct VertexData {
-	Position position;
-	Normal normal;
-	Color color;
-	TextureCoordinate textureCoordinate;
-}
-
-alias IndexData = uint;
 
 struct MeshData {
 	VertexData[] vertexData;

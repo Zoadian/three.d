@@ -1,6 +1,7 @@
 ﻿module three.gl.buffer;
 
-import three.common;
+public import derelict.opengl3.gl3;
+import three.gl.util;
 
 enum GlBufferTarget {
 	Array = GL_ARRAY_BUFFER, 
