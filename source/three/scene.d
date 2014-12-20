@@ -3,6 +3,8 @@
 import three.mesh;
 
 struct Scene {
+	ModelData modelData;
+
 	void construct() pure @safe nothrow @nogc {
 	}
 	

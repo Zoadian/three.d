@@ -72,7 +72,7 @@ void main() {
 	//------------------------------------------------
 	// Create Scene
 	//------------------------------------------------
-	ModelData modelData = loadModelData("C:/Coding/models/Collada/duck.dae");
+	scene.modelData = loadModelData("C:/Coding/models/Collada/duck.dae");
 	
 	//------------------------------------------------
 	// Generate TweakBar

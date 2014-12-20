@@ -199,6 +199,12 @@ enum fragmentShaderSource = "
 ";
 
 
+struct RingbufferManager {
+	size_t offset;
+
+};
+
+
 //======================================================================================================================
 // 
 //======================================================================================================================
@@ -209,7 +215,14 @@ struct Renderer {
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
 	GlShaderStorageBuffer!GlDrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
 	GlDispatchIndirectBuffer!GlDrawElementsIndirectCommand dispatchIndirectCommandBuffer; // is filled with DrawElementsIndirectCommand for each mesh each frame. shall be accessed as a ringbuffer
-	GlSyncManager syncManager;
+	GlSyncManager vertexSyncManager;
+	GlSyncManager indexSyncManager;
+	GlSyncManager perInstanceParamSyncManager;
+	GlSyncManager dispatchIndirectCommandSyncManager;
+	size_t vertexRingbufferOffset = 0;
+	size_t indexRingbufferOffset = 0;
+	size_t perInstanceParamRingbufferOffset = 0;
+	size_t dispatchIndirectCommandRingbufferOffset = 0;
 	
 	void construct(uint width, uint height) {
 		GLbitfield createFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;//TODO: ?? | GL_MAP_DYNAMIC_STORAGE_BIT;
@@ -221,7 +234,10 @@ struct Renderer {
 		this.indexBuffer.construct(bufferCount * maxIndices, createFlags, mapFlags);
 		this.perInstanceParamBuffer.construct(bufferCount * maxPerInstanceParams, createFlags, mapFlags);
 		this.dispatchIndirectCommandBuffer.construct(bufferCount * maxIndirectCommands, createFlags, mapFlags);
-		this.syncManager.construct();
+		this.vertexSyncManager.construct();
+		this.indexSyncManager.construct();
+		this.perInstanceParamSyncManager.construct();
+		this.dispatchIndirectCommandSyncManager.construct();
 		
 		glCheck!glEnableVertexAttribArray(0);
 		glCheck!glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VertexData.sizeof, cast(GLvoid*)0 );
@@ -234,7 +250,10 @@ struct Renderer {
 	}
 	
 	void destruct() {
-		this.syncManager.destruct();
+		this.dispatchIndirectCommandSyncManager.destruct();
+		this.perInstanceParamSyncManager.destruct();
+		this.indexSyncManager.destruct();
+		this.vertexSyncManager.destruct();
 		this.dispatchIndirectCommandBuffer.destruct();
 		this.perInstanceParamBuffer.destruct();
 		this.indexBuffer.destruct();
@@ -266,17 +285,38 @@ struct Renderer {
 	//			indexBufferOffset += meshData.indexData.length * IndexData.sizeof;
 	//		}
 	//	}
-	
-	void renderOneFrame(ref Scene scene, ref Camera camera, ref GlRenderTarget renderTarget, ref Viewport viewport) nothrow {
-		
+
+	void renderOneFrame(ref Scene scene, ref Camera camera, ref GlRenderTarget renderTarget, ref Viewport viewport)  {
+		// clear scene
 		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glCheck!glClearDepth(1.0f);
 		glCheck!glClearColor(0, 0.3, 0, 1);
+
+		// calc if we have to wrap our buffer
+		if(vertexRingbufferOffset + scene.modelData.vertexCount >= this.vertexBuffer.length) {
+			vertexRingbufferOffset = 0;
+		}
 		
-		
+		if(indexRingbufferOffset + scene.modelData.indexCount >= this.indexBuffer.length) {
+			indexRingbufferOffset = 0;
+		}
+
 		// wait until GPU has finished rendereing from our desired buffer destination
-		//TODO: this.syncManager.WaitForLockedRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
-		
+		this.vertexSyncManager.waitForLockedRange(vertexRingbufferOffset, scene.modelData.vertexCount);
+		this.indexSyncManager.waitForLockedRange(indexRingbufferOffset, scene.modelData.indexCount);
+
+		// upload data to our buffers
+		foreach(meshData; scene.modelData.meshData) {
+			import std.c.string: memcpy;
+			// upload vertex data
+			memcpy(this.vertexBuffer.data + vertexRingbufferOffset, meshData.vertexData.ptr, meshData.vertexData.length * VertexData.sizeof);
+			vertexRingbufferOffset += meshData.vertexData.length * VertexData.sizeof;
+			// upload index data
+			memcpy(this.indexBuffer.data + indexRingbufferOffset, meshData.indexData.ptr, meshData.indexData.length * IndexData.sizeof);
+			indexRingbufferOffset += meshData.indexData.length * IndexData.sizeof;
+		}
+
+
 		
 		/*
 		foreach(renderTarget) //framebuffer
@@ -312,8 +352,9 @@ struct Renderer {
 		this.dispatchIndirectCommandBuffer.bind();
 		
 		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), null, meshCount, 0);
-		
-		//TODO: this.syncManager.LockRange(mStartDestOffset, _vertices.size() * sizeof(Vec2));
+
+		this.vertexSyncManager.lockRange(vertexRingbufferOffset, scene.modelData.vertexCount);
+		this.indexSyncManager.lockRange(indexRingbufferOffset, scene.modelData.indexCount);
 	}
 	
 	debug {
