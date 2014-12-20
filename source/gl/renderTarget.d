@@ -1,12 +1,12 @@
-﻿module three.renderTarget;
+﻿module three.gl.renderTarget;
 
 import three.gl.util;
 
-struct RenderTarget {
+struct GlRenderTarget {
 	uint width;
 	uint height;
 	GLuint textureTarget;
-
+	
 	void construct(uint width, uint height) nothrow {
 		this.width = width;
 		this.height = height;

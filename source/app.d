@@ -7,19 +7,24 @@ import three;
 import std.experimental.logger;
 
 
+public import derelict.opengl3.gl3;
+public import derelict.glfw3.glfw3;
+public import derelict.anttweakbar.anttweakbar;
+public import derelict.freeimage.freeimage;	
+public import derelict.freetype.ft;
+public import derelict.assimp3.assimp;
+
+public import std.experimental.logger;
 
 
-
-import three.gl.util;
+import three.gl.renderer;
 
 
 
 import three.window;
 import three.viewport;
 import three.camera;
-import three.renderTarget;
 import three.scene;
-import three.renderer;
 
 
 void main() {
@@ -27,7 +32,7 @@ void main() {
 	Viewport viewport;
 	Scene scene;
 	Camera camera;
-	RenderTarget renderTarget;
+	GlRenderTarget renderTarget;
 	//	OpenGlTiledDeferredRenderer renderer;
 	Renderer renderer;
 	bool keepRunning = true;
@@ -127,11 +132,7 @@ void main() {
 		window.pollEvents();
 		
 		window.makeAktiveRenderWindow();
-		
-		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glCheck!glClearDepth(1.0f);
-		glCheck!glClearColor(0, 0.3, 0, 1);
-				
+						
 		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
 
 		debug{ renderer.blitGBufferToScreen(); }

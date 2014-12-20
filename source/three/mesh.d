@@ -1,6 +1,8 @@
 ﻿module three.mesh;
 
-import three.common;
+public import derelict.assimp3.assimp;
+
+public import std.experimental.logger;
 
 import three.gl.draw;
 

@@ -1,6 +1,5 @@
 ﻿module three.scene;
 
-import three.common;
 import three.mesh;
 
 struct Scene {
