@@ -15,7 +15,7 @@ struct MeshData {
 
 struct ModelData {
 	MeshData[] meshData;
-	
+
 	size_t vertexCount() const @safe {
 		import std.algorithm : map, reduce;
 		return meshData.map!("a.vertexData.length").reduce!("a + b");
@@ -24,6 +24,10 @@ struct ModelData {
 	size_t indexCount() const @safe {
 		import std.algorithm : map, reduce;
 		return meshData.map!("a.indexData.length").reduce!("a + b");
+	}
+
+	size_t meshCount() const @safe {
+		return meshData.length;
 	}
 }
 

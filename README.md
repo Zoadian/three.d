@@ -12,6 +12,3 @@ Three.d is high performance 3D graphics engine written from scratch in the D Pro
 * Virtual Textures (Megatextures)
 * Async Buffer Transfers [[1]](http://www.seas.upenn.edu/~pcozzi/OpenGLInsights/OpenGLInsights-AsynchronousBufferTransfers.pdf)
 
-
-## License: 
-[LGPL v3 - GNU LESSER GENERAL PUBLIC LICENSE Version 3, 29 June 2007](http://www.gnu.org/licenses/lgpl.html)

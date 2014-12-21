@@ -219,10 +219,10 @@ struct Renderer {
 	GlSyncManager indexSyncManager;
 	GlSyncManager perInstanceParamSyncManager;
 	GlSyncManager dispatchIndirectCommandSyncManager;
-	size_t vertexRingbufferOffset = 0;
-	size_t indexRingbufferOffset = 0;
-	size_t perInstanceParamRingbufferOffset = 0;
-	size_t dispatchIndirectCommandRingbufferOffset = 0;
+	size_t vertexRingbufferIndex = 0;
+	size_t indexRingbufferIndex = 0;
+	size_t perInstanceParamRingbufferIndex = 0;
+	size_t dispatchIndirectCommandRingbufferIndex = 0;
 	
 	void construct(uint width, uint height) {
 		GLbitfield createFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;//TODO: ?? | GL_MAP_DYNAMIC_STORAGE_BIT;
@@ -293,27 +293,34 @@ struct Renderer {
 		glCheck!glClearColor(0, 0.3, 0, 1);
 
 		// calc if we have to wrap our buffer
-		if(vertexRingbufferOffset + scene.modelData.vertexCount >= this.vertexBuffer.length) {
-			vertexRingbufferOffset = 0;
+		if(vertexRingbufferIndex + scene.modelData.vertexCount >= this.vertexBuffer.length) {
+			vertexRingbufferIndex = 0;
 		}
 		
-		if(indexRingbufferOffset + scene.modelData.indexCount >= this.indexBuffer.length) {
-			indexRingbufferOffset = 0;
+		if(indexRingbufferIndex + scene.modelData.indexCount >= this.indexBuffer.length) {
+			indexRingbufferIndex = 0;
+		}
+		
+		if(dispatchIndirectCommandRingbufferIndex + scene.modelData.meshCount >= this.dispatchIndirectCommandBuffer.length) {
+			dispatchIndirectCommandRingbufferIndex = 0;
 		}
 
 		// wait until GPU has finished rendereing from our desired buffer destination
-		this.vertexSyncManager.waitForLockedRange(vertexRingbufferOffset, scene.modelData.vertexCount);
-		this.indexSyncManager.waitForLockedRange(indexRingbufferOffset, scene.modelData.indexCount);
+		this.vertexSyncManager.waitForLockedRange(vertexRingbufferIndex, scene.modelData.vertexCount);
+		this.indexSyncManager.waitForLockedRange(indexRingbufferIndex, scene.modelData.indexCount);
+		this.dispatchIndirectCommandSyncManager.waitForLockedRange(dispatchIndirectCommandRingbufferIndex, scene.modelData.meshCount);
 
 		// upload data to our buffers
 		foreach(meshData; scene.modelData.meshData) {
-			import std.c.string: memcpy;
 			// upload vertex data
-			memcpy(this.vertexBuffer.data + vertexRingbufferOffset, meshData.vertexData.ptr, meshData.vertexData.length * VertexData.sizeof);
-			vertexRingbufferOffset += meshData.vertexData.length * VertexData.sizeof;
+			this.vertexBuffer.data[vertexRingbufferIndex .. vertexRingbufferIndex + meshData.vertexData.length] = meshData.vertexData[0 .. meshData.vertexData.length];
+			vertexRingbufferIndex += meshData.vertexData.length;
 			// upload index data
-			memcpy(this.indexBuffer.data + indexRingbufferOffset, meshData.indexData.ptr, meshData.indexData.length * IndexData.sizeof);
-			indexRingbufferOffset += meshData.indexData.length * IndexData.sizeof;
+			this.indexBuffer.data[indexRingbufferIndex .. indexRingbufferIndex + meshData.indexData.length] = meshData.indexData[0 .. meshData.indexData.length];
+			indexRingbufferIndex += meshData.indexData.length;
+			// draw command data
+			this.dispatchIndirectCommandBuffer.data[dispatchIndirectCommandRingbufferIndex] = GlDrawElementsIndirectCommand();
+			dispatchIndirectCommandRingbufferIndex += GlDrawElementsIndirectCommand.sizeof;
 		}
 
 
@@ -353,8 +360,9 @@ struct Renderer {
 		
 		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), null, meshCount, 0);
 
-		this.vertexSyncManager.lockRange(vertexRingbufferOffset, scene.modelData.vertexCount);
-		this.indexSyncManager.lockRange(indexRingbufferOffset, scene.modelData.indexCount);
+		this.vertexSyncManager.lockRange(vertexRingbufferIndex, scene.modelData.vertexCount);
+		this.indexSyncManager.lockRange(indexRingbufferIndex, scene.modelData.indexCount);
+		this.dispatchIndirectCommandSyncManager.lockRange(dispatchIndirectCommandRingbufferIndex, scene.modelData.meshCount);
 	}
 	
 	debug {
