@@ -355,21 +355,21 @@ struct Renderer {
 	
 	debug {
 		void blitGBufferToScreen() {
-//			glCheck!glBindFramebuffer(GL_READ_FRAMEBUFFER, this.gbuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_READ_FRAMEBUFFER, 0); 
-//			
-//			GLsizei width = this.gbuffer.width;
-//			GLsizei height = this.gbuffer.height;
-//			
-//			scope(exit) glCheck!glReadBuffer(GL_NONE);
-//			
-//			glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 0);
-//			glCheck!glBlitFramebuffer(0, 0, width, height, 0, height-300, 400, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-//			
-//			glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 1);
-//			glCheck!glBlitFramebuffer(0, 0, width, height, 0, 0, 400, 300, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-//			
-//			glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 2);
-//			glCheck!glBlitFramebuffer(0, 0, width, height, width-400, height-300, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			glCheck!glBindFramebuffer(GL_READ_FRAMEBUFFER, this.gbuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_READ_FRAMEBUFFER, 0); 
+			
+			GLsizei width = this.gbuffer.width;
+			GLsizei height = this.gbuffer.height;
+			
+			scope(exit) glCheck!glReadBuffer(GL_NONE);
+			
+			glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 0);
+			glCheck!glBlitFramebuffer(0, 0, width, height, 0, height-300, 400, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			
+			glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 1);
+			glCheck!glBlitFramebuffer(0, 0, width, height, 0, 0, 400, 300, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			
+			glCheck!glReadBuffer(GL_COLOR_ATTACHMENT0 + 2);
+			glCheck!glBlitFramebuffer(0, 0, width, height, width-400, height-300, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 		}
 	}
 }

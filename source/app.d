@@ -132,7 +132,7 @@ void main() {
 		window.pollEvents();
 		
 		window.makeAktiveRenderWindow();
-						
+
 		renderer.renderOneFrame(scene, camera, renderTarget, viewport);
 
 		debug{ renderer.blitGBufferToScreen(); }
