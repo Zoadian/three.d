@@ -128,6 +128,7 @@ void main() {
 	//------------------------------------------------
 	ulong frameCount = 0;
 	glfwSetTime(0);
+
 	while(keepRunning) {
 		window.pollEvents();
 		
@@ -137,12 +138,12 @@ void main() {
 
 		debug{ renderer.blitGBufferToScreen(); }
 
-		TwDraw();
+//		TwDraw();
 		
 		window.swapBuffers();
 		
 		++frameCount;
-		if(frameCount % 1000 == 0) {
+		if(frameCount % 10 == 0) {
 			auto fps = cast(double)frameCount / glfwGetTime();
 			log("FPS: ", fps);
 			frameCount = 0;

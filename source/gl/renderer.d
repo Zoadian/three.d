@@ -16,11 +16,10 @@ import three.gl.sync;
 import three.gl.util;
 public import three.gl.renderTarget;
 
-enum maxVertices = 1 * 1024 * 1024;
-enum maxIndices = 1 * 1024 * 1024;
-enum maxPerInstanceParams = 1 * 1024 * 1024;
-enum maxIndirectCommands = 1 * 1024 * 1024;
-enum bufferCount = 3; //tripple buffering
+enum maxVertices = 16 * 1024;
+enum maxIndices = 16 * 1024;
+enum maxPerInstanceParams = 1024;
+enum maxIndirectCommands = 1024;
 
 
 
@@ -229,10 +228,10 @@ struct Renderer {
 		
 		this.gbuffer.construct(width, height);
 		this.shaderPipeline.construct(vertexShaderSource, fragmentShaderSource);
-		this.vertexBuffer.construct(bufferCount * maxVertices, createFlags, mapFlags);
-		this.indexBuffer.construct(bufferCount * maxIndices, createFlags, mapFlags);
-		this.perInstanceParamBuffer.construct(bufferCount * maxPerInstanceParams, createFlags, mapFlags);
-		this.drawIndirectCommandBuffer.construct(bufferCount * maxIndirectCommands, createFlags, mapFlags);
+		this.vertexBuffer.construct(maxVertices, createFlags, mapFlags);
+		this.indexBuffer.construct(maxIndices, createFlags, mapFlags);
+		this.perInstanceParamBuffer.construct(maxPerInstanceParams, createFlags, mapFlags);
+		this.drawIndirectCommandBuffer.construct(maxIndirectCommands, createFlags, mapFlags);
 		this.vertexSyncManager.construct();
 		this.indexSyncManager.construct();
 		this.perInstanceParamSyncManager.construct();
