@@ -214,7 +214,7 @@ struct Renderer {
 	GlArrayBuffer!VertexData vertexBuffer; // vertex data for all meshes
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
 	GlShaderStorageBuffer!GlDrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
-	GlDispatchIndirectBuffer!GlDrawElementsIndirectCommand dispatchIndirectCommandBuffer; // is filled with DrawElementsIndirectCommand for each mesh each frame. shall be accessed as a ringbuffer
+	GlDrawIndirectBuffer!GlDrawElementsIndirectCommand dispatchIndirectCommandBuffer; // is filled with DrawElementsIndirectCommand for each mesh each frame. shall be accessed as a ringbuffer
 	GlSyncManager vertexSyncManager;
 	GlSyncManager indexSyncManager;
 	GlSyncManager perInstanceParamSyncManager;
@@ -346,7 +346,8 @@ struct Renderer {
 		glCheck!glEnable(GL_DEPTH_TEST); scope(exit) glCheck!glDisable(GL_DEPTH_TEST);
 		glCheck!glDepthFunc(GL_LEQUAL);
 			
-		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)dispatchIndirectCommandRingbufferIndexForThisFrame, scene.modelData.meshCount, GlDrawElementsIndirectCommand.sizeof);
+		//glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), this.dispatchIndirectCommandBuffer.data + dispatchIndirectCommandRingbufferIndex, scene.modelData.meshCount, GlDrawElementsIndirectCommand.sizeof);
+		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)dispatchIndirectCommandRingbufferIndexForThisFrame, scene.modelData.meshCount, 0);
 
 		this.vertexSyncManager.lockRange(vertexRingbufferIndex, scene.modelData.vertexCount);
 		this.indexSyncManager.lockRange(indexRingbufferIndex, scene.modelData.indexCount);
