@@ -287,6 +287,12 @@ struct Renderer {
 	//	}
 
 	void renderOneFrame(ref Scene scene, ref Camera camera, ref GlRenderTarget renderTarget, ref Viewport viewport)  {
+		// bind buffers
+		this.vertexBuffer.bind();
+		this.indexBuffer.bind();
+		this.perInstanceParamBuffer.bind();
+		this.dispatchIndirectCommandBuffer.bind();
+
 		// clear scene
 		glCheck!glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glCheck!glClearDepth(1.0f);
@@ -310,55 +316,37 @@ struct Renderer {
 		this.indexSyncManager.waitForLockedRange(indexRingbufferIndex, scene.modelData.indexCount);
 		this.dispatchIndirectCommandSyncManager.waitForLockedRange(dispatchIndirectCommandRingbufferIndex, scene.modelData.meshCount);
 
+		// backup the index, we'll need it for our draw command
+		auto dispatchIndirectCommandRingbufferIndexForThisFrame = dispatchIndirectCommandRingbufferIndex;
+
 		// upload data to our buffers
 		foreach(meshData; scene.modelData.meshData) {
 			// upload vertex data
 			this.vertexBuffer.data[vertexRingbufferIndex .. vertexRingbufferIndex + meshData.vertexData.length] = meshData.vertexData[0 .. meshData.vertexData.length];
-			vertexRingbufferIndex += meshData.vertexData.length;
 			// upload index data
 			this.indexBuffer.data[indexRingbufferIndex .. indexRingbufferIndex + meshData.indexData.length] = meshData.indexData[0 .. meshData.indexData.length];
-			indexRingbufferIndex += meshData.indexData.length;
 			// draw command data
-			this.dispatchIndirectCommandBuffer.data[dispatchIndirectCommandRingbufferIndex] = GlDrawElementsIndirectCommand();
-			dispatchIndirectCommandRingbufferIndex += GlDrawElementsIndirectCommand.sizeof;
+			this.dispatchIndirectCommandBuffer.data[dispatchIndirectCommandRingbufferIndex] = GlDrawElementsIndirectCommand(
+				meshData.vertexData.length, 
+				1,
+				indexRingbufferIndex,
+				vertexRingbufferIndex,
+				0
+				);
+			// advance ringbuffers
+			vertexRingbufferIndex += meshData.vertexData.length;
+			indexRingbufferIndex += meshData.indexData.length;
+			++dispatchIndirectCommandRingbufferIndex;
 		}
-
-
-		
-		/*
-		foreach(renderTarget) //framebuffer
-		foreach(pass)
-		foreach(material) //shaders
-		foreach(materialInstance) //textures
-		foreach(vertexFormat) //vertex buffers
-		foreach(object) {
-							write uniform data;
-							glDrawElementsBaseVertex
-						}
-		*/	
-		
-		GLsizei meshCount = 0;
-		
+				
 		glCheck!glViewport(0, 0, this.gbuffer.width, this.gbuffer.height);
 		
 		// enable depth mask _before_ glClear ing the depth buffer!
 		glCheck!glDepthMask(GL_TRUE); scope(exit) glCheck!glDepthMask(GL_FALSE);
 		glCheck!glEnable(GL_DEPTH_TEST); scope(exit) glCheck!glDisable(GL_DEPTH_TEST);
 		glCheck!glDepthFunc(GL_LEQUAL);
-		
-		// write draw parameters
-		
-		// write draw commmands
-		
-		// draw //TODO: pass offset (cast to ptr) into command buffer instead of null
-		
-		
-		this.vertexBuffer.bind();
-		this.indexBuffer.bind();
-		this.perInstanceParamBuffer.bind();
-		this.dispatchIndirectCommandBuffer.bind();
-		
-		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), null, meshCount, 0);
+			
+		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)dispatchIndirectCommandRingbufferIndexForThisFrame, scene.modelData.meshCount, GlDrawElementsIndirectCommand.sizeof);
 
 		this.vertexSyncManager.lockRange(vertexRingbufferIndex, scene.modelData.vertexCount);
 		this.indexSyncManager.lockRange(indexRingbufferIndex, scene.modelData.indexCount);

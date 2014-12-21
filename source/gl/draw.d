@@ -4,7 +4,7 @@ public import derelict.opengl3.gl3;
 import three.mesh;
 
 struct GlDrawElementsIndirectCommand {
-	GLuint count;
+	GLuint vertexCount;
 	GLuint instanceCount;
 	GLuint firstIndex;
 	GLuint baseVertex;
