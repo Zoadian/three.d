@@ -262,8 +262,6 @@ struct Renderer {
 	}
 
 	void renderOneFrame(ref Scene scene, ref Camera camera, ref GlRenderTarget renderTarget, ref Viewport viewport)  {
-		"-----------begin renderOneFrame---------".log;
-
 		// calc if we have to wrap our buffer
 		if(vertexRingbufferIndex + scene.modelData.vertexCount >= this.vertexBuffer.length) {
 			vertexRingbufferIndex = 0;
@@ -278,24 +276,21 @@ struct Renderer {
 		}
 
 		// wait until GPU has finished rendereing from our desired buffer destination
-		log("vertexSyncManager.waitForLockedRange ", vertexRingbufferIndex, ", ", scene.modelData.vertexCount); 
 		this.vertexSyncManager.waitForLockedRange(vertexRingbufferIndex, scene.modelData.vertexCount);
-		log("indexSyncManager.waitForLockedRange ", indexRingbufferIndex, ", ", scene.modelData.indexCount); 
 		this.indexSyncManager.waitForLockedRange(indexRingbufferIndex, scene.modelData.indexCount);
-		log("drawIndirectCommandSyncManager.waitForLockedRange ", drawIndirectCommandRingbufferIndex, ", ", scene.modelData.meshCount); 
 		this.drawIndirectCommandSyncManager.waitForLockedRange(drawIndirectCommandRingbufferIndex, scene.modelData.meshCount);
 
 		// bind buffers
-		this.vertexBuffer.bind();
-		this.indexBuffer.bind();
-		this.perInstanceParamBuffer.bind();
-		this.drawIndirectCommandBuffer.bind();
+		this.vertexBuffer.bind(); scope(exit) this.vertexBuffer.unbind();
+		this.indexBuffer.bind(); scope(exit) this.indexBuffer.unbind();
+		this.perInstanceParamBuffer.bind(); scope(exit) this.perInstanceParamBuffer.unbind();
+		this.drawIndirectCommandBuffer.bind(); scope(exit) this.drawIndirectCommandBuffer.unbind();
 
 		//bind gbuffer
 		glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
 		GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0 + 0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2];
 		glCheck!glDrawBuffers(drawBuffers.length, drawBuffers.ptr); scope(exit) glCheck!glDrawBuffer(GL_NONE);
-		
+
 		// enable depth mask _before_ glClear ing the depth buffer!
 		glCheck!glDepthMask(GL_TRUE); scope(exit) glCheck!glDepthMask(GL_FALSE);
 		glCheck!glEnable(GL_DEPTH_TEST); scope(exit) glCheck!glDisable(GL_DEPTH_TEST);
@@ -336,21 +331,16 @@ struct Renderer {
 			++drawIndirectCommandRingbufferIndex;
 		}
 			
-		//bind pipeline
+		// bind pipeline
 		glCheck!glBindProgramPipeline(shaderPipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
 
-		//draw
-		log("glMultiDrawElementsIndirect ", drawIndirectCommandRingbufferIndexForThisFrame, ", ", scene.modelData.meshCount, ", ", 0); 
-		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)drawIndirectCommandRingbufferIndexForThisFrame, scene.modelData.meshCount, 0);
+		// draw
+		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)(drawIndirectCommandRingbufferIndexForThisFrame * GlDrawElementsIndirectCommand.sizeof), scene.modelData.meshCount, 0);
 
 		// lock ranges
-		log("vertexSyncManager.lockRange ", vertexRingbufferIndexForThisFrame, ", ", scene.modelData.vertexCount); 
 		this.vertexSyncManager.lockRange(vertexRingbufferIndexForThisFrame, scene.modelData.vertexCount);
-		log("indexSyncManager.lockRange ", indexRingbufferIndexForThisFrame, ", ", scene.modelData.indexCount); 
 		this.indexSyncManager.lockRange(indexRingbufferIndexForThisFrame, scene.modelData.indexCount);
-		log("drawIndirectCommandSyncManager.lockRange ", drawIndirectCommandRingbufferIndexForThisFrame, ", ", scene.modelData.meshCount); 
 		this.drawIndirectCommandSyncManager.lockRange(drawIndirectCommandRingbufferIndexForThisFrame, scene.modelData.meshCount);
-		"-----------end renderOneFrame---------\n".log;
 	}
 	
 	debug {

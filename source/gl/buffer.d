@@ -48,9 +48,9 @@ struct GlBuffer(GlBufferTarget Target, T) {
 		glCheck!glBindBuffer(Target, this.handle);
 	}
 	
-//	void unbind() {
-//		glCheck!glBindBuffer(Target, 0);
-//	}
+	void unbind() {
+		glCheck!glBindBuffer(Target, 0);
+	}
 }
 
 alias GlArrayBuffer(T) = GlBuffer!(GlBufferTarget.Array, T);

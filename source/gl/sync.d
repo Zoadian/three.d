@@ -2,6 +2,7 @@
 
 public import derelict.opengl3.gl3;
 import three.gl.util;
+import std.experimental.logger;
 
 enum kOneSecondInNanoSeconds = GLuint64(1000000000);
 
@@ -45,14 +46,12 @@ public:
 				swapLocks ~= lock;
 			}
 		}
-		
-		import std.algorithm : swap;
-		swap(locks, swapLocks);
+
+		locks = swapLocks;
 	}
 	
 	void lockRange(size_t lockBeginOffset, size_t lockLength) nothrow {
 		LockRange newRange = LockRange(lockBeginOffset, lockLength);
-		//TODO: glCheck!
 		GLsync syncName = glCheck!glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		locks ~= Lock(newRange, syncName);
 	}
