@@ -14,16 +14,18 @@ struct MeshData {
 }
 
 struct ModelData {
+	string filePath;
 	MeshData[] meshData;
 
 	size_t vertexCount() const @safe {
 		import std.algorithm : map, reduce;
-		return meshData.map!("a.vertexData.length").reduce!("a + b");
+
+		return meshData.length == 0 ? 0 : meshData.map!("a.vertexData.length").reduce!("a + b");
 	}
 	
 	size_t indexCount() const @safe {
 		import std.algorithm : map, reduce;
-		return meshData.map!("a.indexData.length").reduce!("a + b");
+		return meshData.length == 0 ? 0 : meshData.map!("a.indexData.length").reduce!("a + b");
 	}
 
 	size_t meshCount() const @safe {
@@ -37,6 +39,7 @@ ModelData loadModelData(string filePath) {
 	auto scene = aiImportFile(filePath.toStringz(),	aiProcess_Triangulate); scope(exit) aiReleaseImport(scene);
 
 	ModelData modelData;
+	modelData.filePath = filePath;
 	modelData.meshData.length = scene.mNumMeshes;
 
 	for(uint m = 0; m < scene.mNumMeshes; ++m) {	

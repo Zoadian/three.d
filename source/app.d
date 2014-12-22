@@ -73,7 +73,11 @@ void main() {
 	// Create Scene
 	//------------------------------------------------
 	scene.modelData = loadModelData("C:/Coding/models/Collada/duck.dae");
-	
+	log("Model: ", scene.modelData.filePath);
+	log("vertexCount: ", scene.modelData.vertexCount);
+	log("indexCount: ", scene.modelData.indexCount);
+	log("meshCount: ", scene.modelData.meshCount);
+
 	//------------------------------------------------
 	// Generate TweakBar
 	//------------------------------------------------

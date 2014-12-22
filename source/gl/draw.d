@@ -3,7 +3,7 @@
 public import derelict.opengl3.gl3;
 import three.mesh;
 
-struct GlDrawElementsIndirectCommand {
+struct GlDrawCommand {
 	GLuint vertexCount;
 	GLuint instanceCount;
 	GLuint firstIndex;
