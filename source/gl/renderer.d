@@ -355,13 +355,13 @@ struct Renderer {
 			}
 		}
 		
-		// bind pipeline
+		// Bind pipeline
 		glCheck!glBindProgramPipeline(shaderPipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
 		
-		// draw
+		// Draw
 		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)(curDrawCommandRingbufferIndex * GlDrawCommand.sizeof), scene.meshCount, 0);
 		
-		// lock ranges
+		// Lock ranges
 		this.vertexSyncManager.lockRange(curVertexRingbufferIndex, scene.vertexCount);
 		this.indexSyncManager.lockRange(curIndexRingbufferIndex, scene.indexCount);
 		this.drawIndirectCommandSyncManager.lockRange(curDrawCommandRingbufferIndex, scene.meshCount);
