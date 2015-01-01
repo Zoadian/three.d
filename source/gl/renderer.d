@@ -2,8 +2,6 @@
 
 import three.scene;
 import three.camera;
-import three.viewport;
-import three.mesh;
 
 import std.string : toStringz;
 import std.exception : collectException;
@@ -11,7 +9,6 @@ import std.exception : collectException;
 import std.experimental.logger;
 
 import three.gl.buffer;
-import three.gl.draw;
 import three.gl.sync;
 import three.gl.util;
 public import three.gl.renderTarget;
@@ -22,7 +19,34 @@ enum maxPerInstanceParams = 1024;
 enum maxIndirectCommands = 3*1;
 
 
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct GlDrawCommand {
+	GLuint indexCount;
+	GLuint instanceCount;
+	GLuint indexBufferOffset;
+	GLuint vertexBufferOffset;
+	GLuint instanceBufferOffset;
+}
 
+struct GlDrawParameter {
+	Matrix4 transformationMatrix;
+}
+struct Matrix4 {
+	float[4*4] data;
+}
+
+//======================================================================================================================
+// 
+//======================================================================================================================
+struct Viewport {
+	void construct() pure @safe nothrow @nogc {
+	}
+	
+	void destruct() pure @safe nothrow @nogc {
+	}
+}
 
 //======================================================================================================================
 // 
@@ -256,43 +280,45 @@ struct Renderer {
 	}
 
 	void renderOneFrame(ref Scene scene, ref Camera camera, ref GlRenderTarget renderTarget, ref Viewport viewport)  {
-		assert(vertexBuffer.length >= 3 * scene.modelData.vertexCount);
-		assert(indexBuffer.length >= 3 * scene.modelData.indexCount);
-		assert(drawCommandBuffer.length >= 3 * scene.modelData.meshCount);
+		// Assert that we are tripple buffering
+		assert(vertexBuffer.length >= 3 * scene.vertexCount);
+		assert(indexBuffer.length >= 3 * scene.indexCount);
+		assert(drawCommandBuffer.length >= 3 * scene.meshCount);
 
-		// calc if we have to wrap our buffer
-		if(vertexRingbufferIndex + scene.modelData.vertexCount > this.vertexBuffer.length) {
+		// Calc if we have to wrap our buffer
+		if(vertexRingbufferIndex + scene.vertexCount > this.vertexBuffer.length) {
 			vertexRingbufferIndex = 0;
 		}
 		
-		if(indexRingbufferIndex + scene.modelData.indexCount > this.indexBuffer.length) {
+		if(indexRingbufferIndex + scene.indexCount > this.indexBuffer.length) {
 			indexRingbufferIndex = 0;
 		}
 		
-		if(drawCommandRingbufferIndex + scene.modelData.meshCount > this.drawCommandBuffer.length) {
+		if(drawCommandRingbufferIndex + scene.meshCount > this.drawCommandBuffer.length) {
 			drawCommandRingbufferIndex = 0;
 		}
 
-		// wait until GPU has finished rendereing from our desired buffer destination
-		this.vertexSyncManager.waitForLockedRange(vertexRingbufferIndex, scene.modelData.vertexCount);
-//		log("vertexSyncManager: ", vertexRingbufferIndex, " ", scene.modelData.vertexCount);
-		this.indexSyncManager.waitForLockedRange(indexRingbufferIndex, scene.modelData.indexCount);
-//		log("indexSyncManager: ", indexRingbufferIndex, " ", scene.modelData.indexCount);
-		this.drawIndirectCommandSyncManager.waitForLockedRange(drawCommandRingbufferIndex, scene.modelData.meshCount);
-//		log("drawIndirectCommandSyncManager: ", drawCommandRingbufferIndex, " ", scene.modelData.meshCount);
+		// Wait until GPU has finished rendereing from our desired buffer destination
+		log("vertexSyncManager: ", vertexRingbufferIndex, " ", scene.vertexCount);
+		log("indexSyncManager: ", indexRingbufferIndex, " ", scene.indexCount);
+		log("drawIndirectCommandSyncManager: ", drawCommandRingbufferIndex, " ", scene.meshCount);
+		this.vertexSyncManager.waitForLockedRange(vertexRingbufferIndex, scene.vertexCount);
+		this.indexSyncManager.waitForLockedRange(indexRingbufferIndex, scene.indexCount);
+		this.drawIndirectCommandSyncManager.waitForLockedRange(drawCommandRingbufferIndex, scene.meshCount);
 
-		// bind buffers
+		// Bind buffers
 		this.vertexBuffer.bind(); scope(exit) this.vertexBuffer.unbind();
 		this.indexBuffer.bind(); scope(exit) this.indexBuffer.unbind();
 		this.perInstanceParamBuffer.bind(); scope(exit) this.perInstanceParamBuffer.unbind();
 		this.drawCommandBuffer.bind(); scope(exit) this.drawCommandBuffer.unbind();
 
-		//bind gbuffer
+		// Bind gbuffer
 		glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
 		GLenum[] drawBuffers = [GL_COLOR_ATTACHMENT0 + 0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2];
 		glCheck!glDrawBuffers(drawBuffers.length, drawBuffers.ptr); scope(exit) glCheck!glDrawBuffer(GL_NONE);
-				
-		// clear scene
+
+		// Clear scene and configure draw settings
+		glCheck!glCullFace(GL_BACK); 
 		glCheck!glEnable(GL_DEPTH_TEST);
 		glCheck!glDepthFunc(GL_LEQUAL);
 		glCheck!glDisable(GL_SCISSOR_TEST);
@@ -305,44 +331,40 @@ struct Renderer {
 		
 		glCheck!glViewport(0, 0, this.gbuffer.width, this.gbuffer.height);
 
-		// backup the indices, we'll need it for our draw command and locking
+		// Backup the indices, we'll need it for our draw command and locking
 		auto curVertexRingbufferIndex = vertexRingbufferIndex;
 		auto curIndexRingbufferIndex = indexRingbufferIndex;
 		auto curDrawCommandRingbufferIndex = drawCommandRingbufferIndex;
 
-		// upload data to our buffers
-//		foreach(model; scene.modelData) {
-		//			foreach(meshData; model.meshData) {
-		foreach(meshData; scene.modelData.meshData) {
-			// upload vertex data
-			this.vertexBuffer.data[vertexRingbufferIndex .. vertexRingbufferIndex + meshData.vertexData.length] = meshData.vertexData[0 .. meshData.vertexData.length];
+		// Upload data to our buffers
+		foreach(modelDescriptor; scene.modelDescriptors) {
+			foreach(meshIndex; 0..modelDescriptor.meshDescriptorCount) {
+				auto meshDesciptor = scene.meshDescriptors[modelDescriptor.meshDescriptorOffset + meshIndex];
 
-			// upload index data
-			this.indexBuffer.data[indexRingbufferIndex .. indexRingbufferIndex + meshData.indexData.length] = meshData.indexData[0 .. meshData.indexData.length];
+				this.vertexBuffer.data[vertexRingbufferIndex .. vertexRingbufferIndex + meshDesciptor.vertexCount] = scene.vertexData[meshDesciptor.vertexOffset .. meshDesciptor.vertexOffset + meshDesciptor.vertexCount];
+				this.indexBuffer.data[indexRingbufferIndex .. indexRingbufferIndex + meshDesciptor.indexCount] = scene.indexData[meshDesciptor.indexOffset .. meshDesciptor.indexOffset + meshDesciptor.indexCount];
 
-			// draw command data
-			this.drawCommandBuffer.data[drawCommandRingbufferIndex] = GlDrawCommand(meshData.indexData.length, 1, indexRingbufferIndex, vertexRingbufferIndex, 0);
+				this.drawCommandBuffer.data[drawCommandRingbufferIndex] = GlDrawCommand(meshDesciptor.indexCount, 1, indexRingbufferIndex, vertexRingbufferIndex, 0);
 
-			log(this.drawCommandBuffer.data[drawCommandRingbufferIndex]);
+				log(this.drawCommandBuffer.data[drawCommandRingbufferIndex]);
 
-			// advance ringbuffers
-			vertexRingbufferIndex += meshData.vertexData.length;
-			indexRingbufferIndex += meshData.indexData.length;
-			++drawCommandRingbufferIndex;
+				// Advance ringbuffers
+				vertexRingbufferIndex += meshDesciptor.vertexCount;
+				indexRingbufferIndex += meshDesciptor.indexCount;
+				++drawCommandRingbufferIndex;
+			}
 		}
-//			}
-//		}
-			
+		
 		// bind pipeline
 		glCheck!glBindProgramPipeline(shaderPipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
-
+		
 		// draw
-		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)(curDrawCommandRingbufferIndex * GlDrawCommand.sizeof), scene.modelData.meshCount, 0);
-
+		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)(curDrawCommandRingbufferIndex * GlDrawCommand.sizeof), scene.meshCount, 0);
+		
 		// lock ranges
-		this.vertexSyncManager.lockRange(curVertexRingbufferIndex, scene.modelData.vertexCount);
-		this.indexSyncManager.lockRange(curIndexRingbufferIndex, scene.modelData.indexCount);
-		this.drawIndirectCommandSyncManager.lockRange(curDrawCommandRingbufferIndex, scene.modelData.meshCount);
+		this.vertexSyncManager.lockRange(curVertexRingbufferIndex, scene.vertexCount);
+		this.indexSyncManager.lockRange(curIndexRingbufferIndex, scene.indexCount);
+		this.drawIndirectCommandSyncManager.lockRange(curDrawCommandRingbufferIndex, scene.meshCount);
 	}
 	
 	debug {

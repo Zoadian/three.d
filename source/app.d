@@ -6,7 +6,6 @@ import three;
 
 import std.experimental.logger;
 
-
 public import derelict.opengl3.gl3;
 public import derelict.glfw3.glfw3;
 public import derelict.anttweakbar.anttweakbar;
@@ -16,13 +15,9 @@ public import derelict.assimp3.assimp;
 
 public import std.experimental.logger;
 
-
 import three.gl.renderer;
 
-
-
 import three.window;
-import three.viewport;
 import three.camera;
 import three.scene;
 
@@ -72,11 +67,11 @@ void main() {
 	//------------------------------------------------
 	// Create Scene
 	//------------------------------------------------
-	scene.modelData = loadModelData("C:/Coding/models/Collada/duck.dae");
-	log("Model: ", scene.modelData.filePath);
-	log("vertexCount: ", scene.modelData.vertexCount);
-	log("indexCount: ", scene.modelData.indexCount);
-	log("meshCount: ", scene.modelData.meshCount);
+	scene.loadModel("C:/Coding/models/Collada/duck.dae");
+	log("vertexCount: ", scene.vertexCount, " (", scene.vertexCount * VertexData.sizeof / 1024," KiB)");
+	log("indexCount: ", scene.indexCount, " (", scene.indexCount * IndexData.sizeof / 1024," KiB)");
+	log("meshCount: ", scene.meshCount);
+	log("modelCount: ", scene.modelCount);
 
 	//------------------------------------------------
 	// Generate TweakBar
