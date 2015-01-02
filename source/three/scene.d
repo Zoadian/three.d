@@ -29,6 +29,14 @@ struct VertexData {
 
 alias IndexData = uint;
 
+struct InstanceData {
+	Matrix4 transformation;
+}
+
+struct Matrix4 {
+	float[4*4] data;
+}
+
 struct MeshDescriptor {
 	size_t vertexOffset;
 	size_t vertexCount;
@@ -41,12 +49,20 @@ struct ModelDescriptor {
 	size_t meshDescriptorCount;
 }
 
+struct InstanceDescriptor {
+	size_t modelIndex;
+	size_t instanceOffset;
+	size_t instanceCount;
+}
+
 struct Scene {
 	//TODO: use page allocator
 	VertexData[] vertexData; 
 	IndexData[] indexData;
+	InstanceData[] instanceData;
 	MeshDescriptor[] meshDescriptors;
 	ModelDescriptor[] modelDescriptors;
+	InstanceDescriptor[] instanceDescriptor;
 
 public:
 	void construct() pure @safe nothrow @nogc {
@@ -56,19 +72,19 @@ public:
 	}
 
 public:
-	size_t vertexCount() @property {
+	size_t vertexCount() const pure @safe nothrow @nogc @property {
 		return vertexData.length;
 	}
 
-	size_t indexCount() @property {
+	size_t indexCount() const pure @safe nothrow @nogc @property {
 		return indexData.length;
 	}
 	
-	size_t meshCount() @property {
+	size_t meshCount() const pure @safe nothrow @nogc @property {
 		return meshDescriptors.length;
 	}
-
-	size_t modelCount() @property {
+	
+	size_t modelCount() const pure @safe nothrow @nogc @property {
 		return modelDescriptors.length;
 	}
 
@@ -76,7 +92,11 @@ public:
 	void loadModel(string filePath) {
 		import std.traits;
 		import std.string : toStringz;
-		auto importedScene = aiImportFile(filePath.toStringz(), aiProcess_Triangulate); scope(exit) aiReleaseImport(importedScene);
+		enum flags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType | aiProcess_GenNormals 
+				| aiProcess_PreTransformVertices | aiProcess_ValidateDataStructure | aiProcess_ImproveCacheLocality
+				| aiProcess_FindInvalidData | aiProcess_GenUVCoords;
+		auto importedScene = aiImportFile(filePath.toStringz(), flags ); scope(exit) aiReleaseImport(importedScene);
+		assert(importedScene !is null);
 
 		this.modelDescriptors ~= ModelDescriptor(this.meshCount, importedScene.mNumMeshes);
 		

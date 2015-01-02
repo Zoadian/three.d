@@ -5,6 +5,7 @@ import three.camera;
 
 import std.string : toStringz;
 import std.exception : collectException;
+import std.conv : to;
 
 import std.experimental.logger;
 
@@ -13,10 +14,10 @@ import three.gl.sync;
 import three.gl.util;
 public import three.gl.renderTarget;
 
-enum maxVertices = 3*8500;
-enum maxIndices = 3*12636;
-enum maxPerInstanceParams = 1024;
-enum maxIndirectCommands = 3*1;
+enum maxVertices = 3*150000;
+enum maxIndices = 3*150000;
+enum maxInstances = 3*300;
+enum maxIndirectCommands = 3*100;
 
 
 //======================================================================================================================
@@ -28,13 +29,6 @@ struct GlDrawCommand {
 	GLuint indexBufferOffset;
 	GLuint vertexBufferOffset;
 	GLuint instanceBufferOffset;
-}
-
-struct GlDrawParameter {
-	Matrix4 transformationMatrix;
-}
-struct Matrix4 {
-	float[4*4] data;
 }
 
 //======================================================================================================================
@@ -122,34 +116,34 @@ struct GBuffer {
 
 struct ShaderPipeline {
 	GLuint pipeline;
-	GLuint vertexShaderGeometryPass;
-	GLuint fragmentShaderGeometryPass;
+	GLuint vertexShader;
+	GLuint fragmentShader;
 	
 	void construct(string vertexShaderSource, string fragmentShaderSource) nothrow {
 		glCheck!glGenProgramPipelines(1, &this.pipeline); 
 		
 		auto szVertexSource = [vertexShaderSource.toStringz()];
-		this.vertexShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_VERTEX_SHADER, 1, szVertexSource.ptr);
+		this.vertexShader = glCheck!glCreateShaderProgramv(GL_VERTEX_SHADER, 1, szVertexSource.ptr);
 		int len;
-		glCheck!glGetProgramiv(this.vertexShaderGeometryPass, GL_INFO_LOG_LENGTH , &len);
+		glCheck!glGetProgramiv(this.vertexShader, GL_INFO_LOG_LENGTH , &len);
 		if (len > 1) {
 			char[] msg = new char[len];
-			glCheck!glGetProgramInfoLog(this.vertexShaderGeometryPass, len, null, cast(char*) msg);
+			glCheck!glGetProgramInfoLog(this.vertexShader, len, null, cast(char*) msg);
 			log(cast(string)msg).collectException;
 		}
 		
 		auto szFragmentSource = [fragmentShaderSource.toStringz()];
-		this.fragmentShaderGeometryPass = glCheck!glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, szFragmentSource.ptr);
+		this.fragmentShader = glCheck!glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, szFragmentSource.ptr);
 		//	int len;
-		glCheck!glGetProgramiv(this.fragmentShaderGeometryPass, GL_INFO_LOG_LENGTH , &len);
+		glCheck!glGetProgramiv(this.fragmentShader, GL_INFO_LOG_LENGTH , &len);
 		if (len > 1) {
 			char[] msg = new char[len];
-			glCheck!glGetProgramInfoLog(this.fragmentShaderGeometryPass, len, null, cast(char*) msg);
+			glCheck!glGetProgramInfoLog(this.fragmentShader, len, null, cast(char*) msg);
 			log(cast(string)msg).collectException;
 		}
 		
-		glCheck!glUseProgramStages(this.pipeline, GL_VERTEX_SHADER_BIT, this.vertexShaderGeometryPass);
-		glCheck!glUseProgramStages(this.pipeline, GL_FRAGMENT_SHADER_BIT, this.fragmentShaderGeometryPass);
+		glCheck!glUseProgramStages(this.pipeline, GL_VERTEX_SHADER_BIT, this.vertexShader);
+		glCheck!glUseProgramStages(this.pipeline, GL_FRAGMENT_SHADER_BIT, this.fragmentShader);
 		
 		glCheck!glValidateProgramPipeline(this.pipeline);
 		GLint status;
@@ -172,6 +166,10 @@ enum vertexShaderSource = "
 	layout(location = 1) in vec3 in_normal;
 	layout(location = 2) in vec4 in_color;
 	layout(location = 3) in vec2 in_texcoord;
+	 
+	layout(std140, binding = 4) uniform InstanceData {
+	    mat4 transformations["~to!string(maxInstances)~"];
+	};
 
 	//==============
 	out vec2 _normal;
@@ -179,20 +177,22 @@ enum vertexShaderSource = "
 	out vec3 _color;
 	//==============
 
-	out gl_PerVertex 
-	{
+	out gl_PerVertex {
     	vec4 gl_Position;
  	};
 
-	vec2 encode(vec3 n)
-	{
+	vec2 encode(vec3 n) {
 	    float f = sqrt(8*n.z+8);
 	    return n.xy / f + 0.5;
 	}
 	
-	void main() 
-	{        				
-		gl_Position = vec4(0.005 * in_position.x, 0.005 * in_position.y, 0.005* in_position.z, 1.0);
+	void main() {        				
+//        mat4 transformation = mat4(1.0);
+//        transformation[0][0] = 0.005;
+//        transformation[1][1] = 0.005;
+//        transformation[2][2] = 0.005;
+
+		gl_Position = transformations[0] * vec4(in_position.x, in_position.y, in_position.z, 1.0);
 		_normal = encode(in_normal);
 		_texture = in_texcoord;
 		_color = in_color.xyz;
@@ -212,8 +212,7 @@ enum fragmentShaderSource = "
 	layout(location = 1) out vec4 normal;
 	layout(location = 2) out vec4 color;
 
-	void main()
-	{
+	void main() {
 		depth = gl_FragCoord.z;
 		normal.xy = _normal.xy;
 		color.xyz = _color;
@@ -230,15 +229,15 @@ struct Renderer {
 	ShaderPipeline shaderPipeline;
 	GlArrayBuffer!VertexData vertexBuffer; // vertex data for all meshes
 	GlElementArrayBuffer!IndexData indexBuffer; //index data for all meshes
-	GlShaderStorageBuffer!GlDrawParameter perInstanceParamBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
+	GlUniformBuffer!InstanceData instanceBuffer; // is filled with draw parameters for each instance each frame. shall be accessed as a ringbuffer
 	GlDrawIndirectBuffer!GlDrawCommand drawCommandBuffer; // is filled with DrawElementsIndirectCommand for each mesh each frame. shall be accessed as a ringbuffer
 	GlSyncManager vertexSyncManager;
 	GlSyncManager indexSyncManager;
-	GlSyncManager perInstanceParamSyncManager;
+	GlSyncManager instanceSyncManager;
 	GlSyncManager drawIndirectCommandSyncManager;
 	size_t vertexRingbufferIndex = 0;
 	size_t indexRingbufferIndex = 0;
-	size_t perInstanceParamRingbufferIndex = 0;
+	size_t instanceRingbufferIndex = 0;
 	size_t drawCommandRingbufferIndex = 0;
 	
 	void construct(uint width, uint height) {
@@ -249,11 +248,11 @@ struct Renderer {
 		this.shaderPipeline.construct(vertexShaderSource, fragmentShaderSource);
 		this.vertexBuffer.construct(maxVertices, createFlags, mapFlags);
 		this.indexBuffer.construct(maxIndices, createFlags, mapFlags);
-		this.perInstanceParamBuffer.construct(maxPerInstanceParams, createFlags, mapFlags);
+		this.instanceBuffer.construct(maxInstances, createFlags, mapFlags);
 		this.drawCommandBuffer.construct(maxIndirectCommands, createFlags, mapFlags);
 		this.vertexSyncManager.construct();
 		this.indexSyncManager.construct();
-		this.perInstanceParamSyncManager.construct();
+		this.instanceSyncManager.construct();
 		this.drawIndirectCommandSyncManager.construct();
 
 		glCheck!glEnableVertexAttribArray(0);
@@ -268,11 +267,11 @@ struct Renderer {
 	
 	void destruct() {
 		this.drawIndirectCommandSyncManager.destruct();
-		this.perInstanceParamSyncManager.destruct();
+		this.instanceSyncManager.destruct();
 		this.indexSyncManager.destruct();
 		this.vertexSyncManager.destruct();
 		this.drawCommandBuffer.destruct();
-		this.perInstanceParamBuffer.destruct();
+		this.instanceBuffer.destruct();
 		this.indexBuffer.destruct();
 		this.vertexBuffer.destruct();
 		this.shaderPipeline.destruct();
@@ -299,18 +298,25 @@ struct Renderer {
 		}
 
 		// Wait until GPU has finished rendereing from our desired buffer destination
-		log("vertexSyncManager: ", vertexRingbufferIndex, " ", scene.vertexCount);
-		log("indexSyncManager: ", indexRingbufferIndex, " ", scene.indexCount);
-		log("drawIndirectCommandSyncManager: ", drawCommandRingbufferIndex, " ", scene.meshCount);
+//		log("vertexSyncManager: ", vertexRingbufferIndex, " ", scene.vertexCount);
+//		log("indexSyncManager: ", indexRingbufferIndex, " ", scene.indexCount);
+//		log("drawIndirectCommandSyncManager: ", drawCommandRingbufferIndex, " ", scene.meshCount);
 		this.vertexSyncManager.waitForLockedRange(vertexRingbufferIndex, scene.vertexCount);
 		this.indexSyncManager.waitForLockedRange(indexRingbufferIndex, scene.indexCount);
 		this.drawIndirectCommandSyncManager.waitForLockedRange(drawCommandRingbufferIndex, scene.meshCount);
+				
+		// Bind pipeline
+		glCheck!glBindProgramPipeline(shaderPipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
 
 		// Bind buffers
 		this.vertexBuffer.bind(); scope(exit) this.vertexBuffer.unbind();
 		this.indexBuffer.bind(); scope(exit) this.indexBuffer.unbind();
-		this.perInstanceParamBuffer.bind(); scope(exit) this.perInstanceParamBuffer.unbind();
+		this.instanceBuffer.bind(); scope(exit) this.instanceBuffer.unbind();
 		this.drawCommandBuffer.bind(); scope(exit) this.drawCommandBuffer.unbind();
+
+		int idx = glGetUniformBlockIndex(shaderPipeline.vertexShader, "InstanceData");
+		glCheck!glBindBufferBase(GL_UNIFORM_BUFFER, 4, instanceBuffer.handle);
+		glCheck!glUniformBlockBinding(shaderPipeline.vertexShader, idx, 4);
 
 		// Bind gbuffer
 		glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo); scope(exit) glCheck!glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); 
@@ -334,29 +340,30 @@ struct Renderer {
 		// Backup the indices, we'll need it for our draw command and locking
 		auto curVertexRingbufferIndex = vertexRingbufferIndex;
 		auto curIndexRingbufferIndex = indexRingbufferIndex;
+		auto curInstanceRingbufferIndex = instanceRingbufferIndex;
 		auto curDrawCommandRingbufferIndex = drawCommandRingbufferIndex;
 
 		// Upload data to our buffers
-		foreach(modelDescriptor; scene.modelDescriptors) {
+		foreach(instanceDescriptor; scene.instanceDescriptor) {
+			auto modelDescriptor = scene.modelDescriptors[instanceDescriptor.modelIndex];
 			foreach(meshIndex; 0..modelDescriptor.meshDescriptorCount) {
 				auto meshDesciptor = scene.meshDescriptors[modelDescriptor.meshDescriptorOffset + meshIndex];
 
 				this.vertexBuffer.data[vertexRingbufferIndex .. vertexRingbufferIndex + meshDesciptor.vertexCount] = scene.vertexData[meshDesciptor.vertexOffset .. meshDesciptor.vertexOffset + meshDesciptor.vertexCount];
 				this.indexBuffer.data[indexRingbufferIndex .. indexRingbufferIndex + meshDesciptor.indexCount] = scene.indexData[meshDesciptor.indexOffset .. meshDesciptor.indexOffset + meshDesciptor.indexCount];
+				this.instanceBuffer.data[instanceRingbufferIndex .. instanceRingbufferIndex + instanceDescriptor.instanceCount] = scene.instanceData[instanceDescriptor.instanceOffset .. instanceDescriptor.instanceOffset + instanceDescriptor.instanceCount];
 
-				this.drawCommandBuffer.data[drawCommandRingbufferIndex] = GlDrawCommand(meshDesciptor.indexCount, 1, indexRingbufferIndex, vertexRingbufferIndex, 0);
+				this.drawCommandBuffer.data[drawCommandRingbufferIndex] = GlDrawCommand(meshDesciptor.indexCount, instanceDescriptor.instanceCount, indexRingbufferIndex, vertexRingbufferIndex, instanceRingbufferIndex);
 
-				log(this.drawCommandBuffer.data[drawCommandRingbufferIndex]);
+//				log(this.drawCommandBuffer.data[drawCommandRingbufferIndex]);
 
 				// Advance ringbuffers
 				vertexRingbufferIndex += meshDesciptor.vertexCount;
 				indexRingbufferIndex += meshDesciptor.indexCount;
+				instanceRingbufferIndex += instanceDescriptor.instanceCount;
 				++drawCommandRingbufferIndex;
 			}
 		}
-		
-		// Bind pipeline
-		glCheck!glBindProgramPipeline(shaderPipeline.pipeline); scope(exit) glCheck!glBindProgramPipeline(0);
 		
 		// Draw
 		glCheck!glMultiDrawElementsIndirect(GL_TRIANGLES, toGlType!(this.indexBuffer.ValueType), cast(const void*)(curDrawCommandRingbufferIndex * GlDrawCommand.sizeof), scene.meshCount, 0);

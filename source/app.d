@@ -21,6 +21,12 @@ import three.window;
 import three.camera;
 import three.scene;
 
+enum idendityMatrix = Matrix4([
+	0.005f, 0.0f, 0.0f, 0.0f, 
+	0.0f, 0.005f, 0.0f, 0.0f, 
+	0.0f, 0.0f, 0.005f, 0.0f, 
+	0.0f, 0.0f, 0.0f, 1.0f, 
+]);
 
 void main() {
 	Window window;	
@@ -68,10 +74,15 @@ void main() {
 	// Create Scene
 	//------------------------------------------------
 	scene.loadModel("C:/Coding/models/Collada/duck.dae");
+//	scene.loadModel("C:/Coding/models/Collada/cube.dae");
+//	scene.loadModel("C:/Coding/models/Collada/teapots.DAE");
 	log("vertexCount: ", scene.vertexCount, " (", scene.vertexCount * VertexData.sizeof / 1024," KiB)");
 	log("indexCount: ", scene.indexCount, " (", scene.indexCount * IndexData.sizeof / 1024," KiB)");
 	log("meshCount: ", scene.meshCount);
 	log("modelCount: ", scene.modelCount);
+
+	scene.instanceData ~= InstanceData(idendityMatrix);
+	scene.instanceDescriptor ~= InstanceDescriptor(0, 0, 1);
 
 	//------------------------------------------------
 	// Generate TweakBar
