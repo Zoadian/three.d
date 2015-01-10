@@ -73,9 +73,10 @@ void main() {
 	//------------------------------------------------
 	// Create Scene
 	//------------------------------------------------
-	scene.loadModel("C:/Coding/models/Collada/duck.dae");
-//	scene.loadModel("C:/Coding/models/Collada/cube.dae");
-//	scene.loadModel("C:/Coding/models/Collada/teapots.DAE");
+	//TODO: check file exists
+	scene.loadModel("F:/Coding/models/Collada/duck.dae");
+//	scene.loadModel("F:/Coding/models/Collada/cube.dae");
+//	scene.loadModel("F:/Coding/models/Collada/teapots.DAE");
 	log("vertexCount: ", scene.vertexCount, " (", scene.vertexCount * VertexData.sizeof / 1024," KiB)");
 	log("indexCount: ", scene.indexCount, " (", scene.indexCount * IndexData.sizeof / 1024," KiB)");
 	log("meshCount: ", scene.meshCount);
