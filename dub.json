@@ -1,7 +1,7 @@
 {
 	"name": "three-d",
 	"license": "LGPLv3",
-	"description": "A 3D Graphics Engine.",
+	"description": "A high performance 3D Graphics Engine.",
 	"copyright": "Copyright © 2014, Felix 'Zoadian' Hufnagel",
 	"authors": ["Felix 'Zoadian' Hufnagel"],
 	
